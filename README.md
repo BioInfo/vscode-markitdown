@@ -1,110 +1,205 @@
-# MarkItDown VS Code Extension
+# MarkItDown for VS Code
 
-Convert various file formats to Markdown directly within VS Code with one click.
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/bioinfo.markitdown-vscode)](https://marketplace.visualstudio.com/items?itemName=bioinfo.markitdown-vscode)
+[![GitHub](https://img.shields.io/github/license/BioInfo/vscode-markitdown)](https://github.com/BioInfo/vscode-markitdown/blob/main/LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/BioInfo/vscode-markitdown)](https://github.com/BioInfo/vscode-markitdown/issues)
 
-## Features
+Convert various file formats to Markdown directly within VS Code with one click. No more context switching - transform your documents, presentations, spreadsheets, images, and audio files into clean, readable Markdown without leaving your editor.
 
-- **One-click conversion** from Command Palette or File Explorer context menu
-- **Multiple format support**: PDF, DOCX, PPTX, XLSX, HTML, CSV, JSON, XML, images (with OCR), audio (with transcription), and ZIP archives
-- **Smart output handling** with collision detection and configurable overwrite behavior
-- **Progress notifications** for long-running conversions
-- **Automatic file opening** after successful conversion (configurable)
+## ✨ Features
 
-## Supported File Formats
+- **🚀 One-Click Conversion**: Convert files directly from the Command Palette or File Explorer context menu
+- **📄 Document Support**: PDF, DOCX, PPTX, XLSX files
+- **🌐 Web & Data**: HTML, CSV, JSON, XML files
+- **🖼️ Image OCR**: Extract text from PNG, JPG, JPEG, GIF images
+- **🎵 Audio Transcription**: Convert MP3, WAV audio to text
+- **📦 Archive Processing**: Recursively convert supported files within ZIP archives
+- **⚡ Progress Tracking**: Real-time progress notifications for long conversions
+- **🔧 Smart Output**: Automatic collision detection with numbered suffixes
+- **⚙️ Configurable**: Customize auto-open and overwrite behaviors
 
-### Documents
-- `.pdf` - PDF documents
-- `.docx` - Microsoft Word documents
+## 🎬 Demo
 
-### Presentations
-- `.pptx` - Microsoft PowerPoint presentations
+![MarkItDown Demo](https://raw.githubusercontent.com/BioInfo/vscode-markitdown/main/docs/demo.gif)
 
-### Spreadsheets
-- `.xlsx` - Microsoft Excel spreadsheets
+*Convert any supported file format to Markdown with a simple right-click*
 
-### Web & Structured Data
-- `.html` - HTML files
-- `.csv` - Comma-separated values
-- `.json` - JSON data files
-- `.xml` - XML documents
+## 🚀 Quick Start
 
-### Media (requires additional dependencies)
-- `.png`, `.jpg`, `.jpeg`, `.gif` - Images (with OCR)
-- `.mp3`, `.wav` - Audio files (with transcription)
+### Installation
 
-### Archives
-- `.zip` - ZIP archives (recursively converts supported files within)
+1. **From VS Code Marketplace**: Search for "MarkItDown" in the Extensions view (`Ctrl+Shift+X`)
+2. **From Command Line**: `code --install-extension bioinfo.markitdown-vscode`
+3. **From VSIX**: Download the latest `.vsix` from [releases](https://github.com/BioInfo/vscode-markitdown/releases)
 
-## Usage
+### First Use
+
+1. **Ensure Python is installed** (3.7+ required)
+2. **Right-click any supported file** in the File Explorer
+3. **Select "Convert to Markdown"**
+4. **Wait for first-time setup** (installs dependencies automatically)
+5. **Enjoy your converted Markdown file!**
+
+## 📋 Supported File Formats
+
+| Category | Formats | Description |
+|----------|---------|-------------|
+| **Documents** | `.pdf`, `.docx` | PDF documents, Microsoft Word files |
+| **Presentations** | `.pptx` | Microsoft PowerPoint presentations |
+| **Spreadsheets** | `.xlsx` | Microsoft Excel spreadsheets |
+| **Web & Structured** | `.html`, `.csv`, `.json`, `.xml` | Web pages, data files |
+| **Images** | `.png`, `.jpg`, `.jpeg`, `.gif` | Images with OCR text extraction |
+| **Audio** | `.mp3`, `.wav` | Audio files with speech transcription |
+| **Archives** | `.zip` | ZIP files (recursively processes contents) |
+
+## 🎯 Usage
 
 ### Command Palette
-1. Open Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`)
+1. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
 2. Type "MarkItDown: Convert File to Markdown"
-3. Select the file(s) you want to convert
+3. Select file(s) to convert
 
 ### File Explorer Context Menu
-1. Right-click on any supported file in the File Explorer
+1. Right-click any supported file
 2. Select "Convert to Markdown"
-3. The conversion will start automatically
+3. Conversion starts automatically
 
-## Configuration
+### Batch Processing
+- Select multiple files in the file picker
+- Each file is converted individually
+- Progress shown for each conversion
 
-The extension provides two configuration options:
+## ⚙️ Configuration
 
-- `markitdown.openFileOnSuccess` (default: `true`) - Automatically open the generated Markdown file after successful conversion
-- `markitdown.overwriteExisting` (default: `false`) - Overwrite existing Markdown files instead of creating numbered variants (e.g., `file-1.md`, `file-2.md`)
+Access settings via `File > Preferences > Settings` and search for "MarkItDown":
 
-## Requirements
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `markitdown.openFileOnSuccess` | `true` | Automatically open converted Markdown files |
+| `markitdown.overwriteExisting` | `false` | Overwrite existing files vs. create numbered variants |
 
-- **Python 3.7+** must be installed and available in your PATH
-- The extension will automatically create a virtual environment and install `markitdown` with all optional dependencies for full format support
-- **First-time setup**: The extension will download and install all necessary dependencies (may take a few minutes on first use)
+## 🔧 Requirements
 
-## Installation
+- **VS Code**: Version 1.74.0 or higher
+- **Python**: Version 3.7 or higher (must be in PATH)
+- **Internet Connection**: Required for first-time dependency installation
 
-1. Install the extension from the VS Code Marketplace
-2. Ensure Python is installed on your system
-3. The extension will handle the rest automatically on first use
+### Automatic Setup
+The extension automatically:
+- ✅ Detects Python installation
+- ✅ Creates isolated virtual environment
+- ✅ Installs `markitdown` with all dependencies
+- ✅ Manages environment updates
 
-## How It Works
+## 🏗️ How It Works
 
-The extension uses a two-process architecture:
-- **VS Code Extension (TypeScript)**: Handles UI, commands, and orchestration
-- **Python Subprocess**: Runs the `markitdown` library in an isolated virtual environment
+MarkItDown uses a secure two-process architecture:
 
-This design ensures security, stability, and leverages the proven `markitdown` Python library for reliable conversions.
+1. **VS Code Extension (TypeScript)**: Handles UI, commands, and file management
+2. **Python Subprocess**: Runs the powerful `markitdown` library in isolation
+3. **Virtual Environment**: Keeps dependencies separate from your system Python
 
-## Output Files
+This design ensures:
+- 🔒 **Security**: Isolated execution environment
+- 🚀 **Performance**: Non-blocking operations with progress feedback
+- 🛡️ **Stability**: Extension crashes don't affect VS Code
+- 🔄 **Reliability**: Proven `markitdown` library for conversions
 
-- Converted files are saved alongside the original with a `.md` extension
-- If a file already exists and `overwriteExisting` is `false`, numbered suffixes are added (`-1.md`, `-2.md`, etc.)
-- Success notifications show the final filename and offer to open the file
+## 📊 Output Examples
 
-## Error Handling
+### JSON to Markdown
+**Input** (`data.json`):
+```json
+{
+  "name": "Project Alpha",
+  "version": "1.0.0",
+  "features": ["fast", "reliable", "secure"]
+}
+```
 
-The extension provides detailed error categorization and user-friendly messages:
-- **Unsupported Format**: Clear guidance on supported file types
-- **Corrupted Files**: Suggestions to verify file integrity
-- **Python Environment Issues**: Links to Python installation resources
-- **File Access Problems**: Permission and file lock guidance
+**Output** (`data.md`):
+```markdown
+# JSON Document
 
-All detailed error information is logged to the "MarkItDown" output channel.
+**name**: Project Alpha  
+**version**: 1.0.0  
+**features**: 
+- fast
+- reliable  
+- secure
+```
 
-## Development
+### PDF to Markdown
+Converts PDF documents while preserving:
+- Text formatting and structure
+- Headers and sections
+- Lists and tables
+- Basic styling information
 
-This extension is built with:
-- TypeScript for the VS Code extension host
-- Python `markitdown` library for file conversion
-- Managed virtual environment for Python dependencies
+## 🐛 Troubleshooting
 
-## License
+### Common Issues
 
-[Add your license information here]
+**"Python not found"**
+- Ensure Python 3.7+ is installed and in your PATH
+- Try running `python --version` in terminal
+- Install from [python.org](https://www.python.org/downloads/)
 
-## Contributing
+**"Conversion failed"**
+- Check the Output panel (`View > Output > MarkItDown`)
+- Verify file isn't corrupted by opening in native application
+- Ensure file isn't password-protected or encrypted
 
-[Add contributing guidelines here]
+**"Permission denied"**
+- Close the file in other applications
+- Check file permissions
+- Try copying file to a different location
 
-## Support
+### Getting Help
 
-For issues and feature requests, please visit [your repository URL].
+1. **Check the [FAQ](https://github.com/BioInfo/vscode-markitdown/wiki/FAQ)**
+2. **Search [existing issues](https://github.com/BioInfo/vscode-markitdown/issues)**
+3. **Create a [new issue](https://github.com/BioInfo/vscode-markitdown/issues/new)** with:
+   - VS Code version
+   - Python version
+   - File type and size
+   - Error message from Output panel
+
+## 🤝 Contributing
+
+We welcome contributions! See our [Contributing Guide](https://github.com/BioInfo/vscode-markitdown/blob/main/CONTRIBUTING.md) for details.
+
+### Development Setup
+```bash
+git clone https://github.com/BioInfo/vscode-markitdown.git
+cd vscode-markitdown
+npm install
+npm run compile
+```
+
+Press `F5` to launch the Extension Development Host for testing.
+
+## 📝 Changelog
+
+See [CHANGELOG.md](https://github.com/BioInfo/vscode-markitdown/blob/main/CHANGELOG.md) for release history.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/BioInfo/vscode-markitdown/blob/main/LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built on the excellent [markitdown](https://github.com/microsoft/markitdown) library by Microsoft
+- Inspired by the need for seamless document conversion workflows
+- Thanks to the VS Code extension development community
+
+## 🔗 Links
+
+- **[GitHub Repository](https://github.com/BioInfo/vscode-markitdown)**
+- **[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=bioinfo.markitdown-vscode)**
+- **[Issue Tracker](https://github.com/BioInfo/vscode-markitdown/issues)**
+- **[Releases](https://github.com/BioInfo/vscode-markitdown/releases)**
+
+---
+
+**Enjoy seamless document conversion with MarkItDown! 🚀**

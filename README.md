@@ -18,12 +18,6 @@ Convert various file formats to Markdown directly within VS Code with one click.
 - **🔧 Smart Output**: Automatic collision detection with numbered suffixes
 - **⚙️ Configurable**: Customize auto-open and overwrite behaviors
 
-## 🎬 Demo
-
-![MarkItDown Demo](https://raw.githubusercontent.com/BioInfo/vscode-markitdown/main/docs/demo.gif)
-
-*Convert any supported file format to Markdown with a simple right-click*
-
 ## 🚀 Quick Start
 
 ### Installation

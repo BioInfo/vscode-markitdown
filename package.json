@@ -1,0 +1,87 @@
+{
+  "name": "markitdown-vscode",
+  "displayName": "MarkItDown",
+  "description": "Convert various file formats to Markdown directly in VS Code",
+  "version": "0.1.1",
+  "publisher": "bioinfo",
+  "author": {
+    "name": "bioinfo"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BioInfo/vscode-markitdown.git"
+  },
+  "bugs": {
+    "url": "https://github.com/BioInfo/vscode-markitdown/issues"
+  },
+  "homepage": "https://github.com/BioInfo/vscode-markitdown#readme",
+  "icon": "markitdown.png",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "converter",
+    "pdf",
+    "docx",
+    "pptx",
+    "xlsx"
+  ],
+  "activationEvents": [
+    "onCommand:markitdown.convertFile"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "markitdown.convertFile",
+        "title": "MarkItDown: Convert File to Markdown"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "markitdown.convertFile",
+          "when": "resourceExtname =~ /\\.(pdf|docx|pptx|xlsx|html|csv|json|xml|png|jpg|jpeg|gif|mp3|wav|zip)$/i",
+          "group": "markitdown"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "MarkItDown",
+      "properties": {
+        "markitdown.openFileOnSuccess": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically open the generated Markdown file after successful conversion"
+        },
+        "markitdown.overwriteExisting": {
+          "type": "boolean",
+          "default": false,
+          "description": "Overwrite existing Markdown files instead of creating numbered variants"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {}
+}

@@ -1,11 +1,12 @@
 {
   "name": "markitdown-vscode",
   "displayName": "MarkItDown",
-  "description": "Convert various file formats to Markdown directly in VS Code",
+  "description": "Convert PDF, DOCX, PPTX, XLSX, images, audio, and more to Markdown with one click",
   "version": "0.1.1",
   "publisher": "bioinfo",
   "author": {
-    "name": "bioinfo"
+    "name": "bioinfo",
+    "email": "bioinfo@example.com"
   },
   "license": "MIT",
   "repository": {
@@ -17,10 +18,15 @@
   },
   "homepage": "https://github.com/BioInfo/vscode-markitdown#readme",
   "icon": "markitdown.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
+    "Formatters",
     "Other"
   ],
   "keywords": [
@@ -29,8 +35,20 @@
     "pdf",
     "docx",
     "pptx",
-    "xlsx"
+    "xlsx",
+    "html",
+    "csv",
+    "json",
+    "xml",
+    "image",
+    "audio",
+    "ocr",
+    "transcription",
+    "markitdown",
+    "file conversion",
+    "document converter"
   ],
+  "qna": "marketplace",
   "activationEvents": [
     "onCommand:markitdown.convertFile"
   ],

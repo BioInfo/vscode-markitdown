@@ -5,6 +5,43 @@ All notable changes to the "MarkItDown" extension will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-10-21
+
+### Security
+- **CRITICAL**: Fixed path injection vulnerability in Python conversion script using base64 encoding
+- Added process timeout protection (5-minute default with graceful SIGTERM/SIGKILL termination)
+- Implemented output size limits (10MB per stream) to prevent out-of-memory crashes
+- Added configuration type validation with safe defaults
+
+### Added
+- Virtual environment corruption detection and automatic recovery
+- Batch conversion with aggregate error reporting and detailed failure summaries
+- Output channel automatic cleanup (10,000 line limit) to prevent memory leaks
+- Comprehensive unit test suite for core components
+- Bounded filename collision resolution (100 attempt limit with clear error messages)
+- SECURITY.md documenting all security measures and best practices
+- Enhanced error messages with actionable suggestions
+
+### Changed
+- Converted all file system operations to async/await for better performance and responsiveness
+- Fixed initialization race condition with proper promise-based synchronization
+- Improved batch conversion to continue processing all files even when individual conversions fail
+- Enhanced error categorization with more specific user notifications
+- Virtual environment integrity now verified on every startup with automatic repair
+
+### Fixed
+- Race condition where commands could execute before extension fully initialized
+- Unbounded collision loop when resolving duplicate filenames (could iterate thousands of times)
+- Memory leak in output channel due to unbounded log growth
+- Synchronous file operations blocking VS Code event loop
+- Missing aggregate error handling in batch file conversions
+- Corrupted virtual environments causing silent failures
+
+### Performance
+- Async file operations significantly improve UI responsiveness
+- Reduced event loop blocking during file validation
+- Better memory management with automatic cleanup mechanisms
+
 ## [0.1.1] - 2025-08-22
 
 ### Fixed

@@ -29,18 +29,21 @@ export class ConversionOrchestrator {
 
     public async convertFile(uri: vscode.Uri): Promise<void> {
         const config = this.configManager.getConfiguration();
-        
+
         try {
             // Validate file
             const inputPath = uri.fsPath;
             const fileExtension = path.extname(inputPath).toLowerCase();
-            
+
             if (!this.supportedExtensions.has(fileExtension)) {
                 throw new Error(`Unsupported file format: ${fileExtension}`);
             }
 
-            if (!fs.existsSync(inputPath)) {
-                throw new Error(`File not found: ${inputPath}`);
+            // Check if file exists using async operation
+            try {
+                await fs.promises.access(inputPath, fs.constants.R_OK);
+            } catch {
+                throw new Error(`File not found or not readable: ${inputPath}`);
             }
 
             // Determine output path
@@ -89,21 +92,41 @@ export class ConversionOrchestrator {
         const baseName = path.basename(inputPath, path.extname(inputPath));
         let outputPath = path.join(dir, `${baseName}.md`);
 
-        // Handle file collisions
-        if (fs.existsSync(outputPath)) {
+        // Handle file collisions using async file operations
+        try {
+            await fs.promises.access(outputPath);
+            // File exists, handle collision
+
             if (config.overwriteExisting) {
                 return outputPath;
             } else {
-                // Find available numbered suffix
+                // Find available numbered suffix with safety limit
+                const MAX_ATTEMPTS = 100;
                 let counter = 1;
-                do {
-                    outputPath = path.join(dir, `${baseName}-${counter}.md`);
-                    counter++;
-                } while (fs.existsSync(outputPath));
-            }
-        }
 
-        return outputPath;
+                while (counter <= MAX_ATTEMPTS) {
+                    const candidatePath = path.join(dir, `${baseName}-${counter}.md`);
+
+                    try {
+                        await fs.promises.access(candidatePath);
+                        // File exists, try next number
+                        counter++;
+                    } catch {
+                        // File doesn't exist, use this path
+                        return candidatePath;
+                    }
+                }
+
+                // If we've reached max attempts, throw an error
+                throw new Error(
+                    `Could not find available filename after ${MAX_ATTEMPTS} attempts. ` +
+                    `Consider enabling "overwriteExisting" setting or cleaning up numbered files.`
+                );
+            }
+        } catch {
+            // File doesn't exist, use default path
+            return outputPath;
+        }
     }
 
     private async openFile(filePath: string): Promise<void> {

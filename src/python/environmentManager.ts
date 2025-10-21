@@ -59,17 +59,54 @@ export class PythonEnvironmentManager {
 
     private async ensureVirtualEnvironment(): Promise<void> {
         const venvPythonPath = this.getVenvPythonPath();
-        
+        let needsCreation = false;
+
         if (!fs.existsSync(venvPythonPath)) {
+            needsCreation = true;
+        } else {
+            // Verify virtual environment is functional
+            try {
+                console.log('Verifying virtual environment integrity...');
+                const verifyResult = await this.executeCommand(venvPythonPath, ['--version'], 10000);
+
+                if (verifyResult.exitCode !== 0) {
+                    console.warn('Virtual environment verification failed, will recreate');
+                    needsCreation = true;
+                }
+            } catch (error) {
+                console.warn(`Virtual environment appears corrupted: ${error}`);
+                needsCreation = true;
+            }
+
+            // If corrupted, clean up the old environment
+            if (needsCreation && fs.existsSync(this.venvPath)) {
+                console.log('Removing corrupted virtual environment...');
+                await fs.promises.rm(this.venvPath, { recursive: true, force: true });
+            }
+        }
+
+        if (needsCreation) {
             console.log('Creating virtual environment...');
-            
+
             const result = await this.executeCommand(this.pythonExecutable!, [
                 '-m', 'venv', this.venvPath
             ]);
-            
+
             if (result.exitCode !== 0) {
                 throw new Error(`Failed to create virtual environment: ${result.stderr}`);
             }
+
+            // Verify creation succeeded
+            console.log('Verifying newly created virtual environment...');
+            const verifyResult = await this.executeCommand(venvPythonPath, ['--version'], 10000);
+
+            if (verifyResult.exitCode !== 0) {
+                throw new Error('Created virtual environment but verification failed');
+            }
+
+            console.log('Virtual environment created and verified successfully');
+        } else {
+            console.log('Virtual environment already exists and is functional');
         }
     }
 
@@ -134,26 +171,35 @@ print("All dependencies verified")
 
     public async convertFile(inputPath: string, outputPath: string): Promise<void> {
         const venvPython = this.getVenvPythonPath();
-        
+
+        // Use base64 encoding to prevent path injection attacks
+        const inputPathB64 = Buffer.from(inputPath).toString('base64');
+        const outputPathB64 = Buffer.from(outputPath).toString('base64');
+
         const result = await this.executeCommand(venvPython, [
             '-c', `
 import sys
+import base64
 from markitdown import MarkItDown
 
 try:
+    # Decode paths from base64 to prevent injection attacks
+    input_path = base64.b64decode('${inputPathB64}').decode('utf-8')
+    output_path = base64.b64decode('${outputPathB64}').decode('utf-8')
+
     md = MarkItDown()
-    result = md.convert('${inputPath.replace(/\\/g, '\\\\')}')
-    
-    with open('${outputPath.replace(/\\/g, '\\\\')}', 'w', encoding='utf-8') as f:
+    result = md.convert(input_path)
+
+    with open(output_path, 'w', encoding='utf-8') as f:
         f.write(result.text_content)
-    
+
     print('Conversion completed successfully')
 except Exception as e:
     print(f'Error: {str(e)}', file=sys.stderr)
     sys.exit(1)
 `
         ]);
-        
+
         if (result.exitCode !== 0) {
             throw new Error(`Conversion failed: ${result.stderr}`);
         }
@@ -172,24 +218,69 @@ except Exception as e:
         }
     }
 
-    private executeCommand(command: string, args: string[]): Promise<{exitCode: number, stdout: string, stderr: string}> {
+    private executeCommand(
+        command: string,
+        args: string[],
+        timeoutMs: number = 300000 // 5 minutes default
+    ): Promise<{exitCode: number, stdout: string, stderr: string}> {
         return new Promise((resolve, reject) => {
-            const process = spawn(command, args, {
+            const childProcess = spawn(command, args, {
                 stdio: ['pipe', 'pipe', 'pipe']
             });
 
             let stdout = '';
             let stderr = '';
+            let isTimedOut = false;
+            let outputExceeded = false;
 
-            process.stdout?.on('data', (data) => {
+            // Maximum output size: 10MB per stream to prevent OOM
+            const MAX_OUTPUT_SIZE = 10 * 1024 * 1024;
+
+            // Set timeout to prevent hanging processes
+            const timeout = setTimeout(() => {
+                isTimedOut = true;
+                childProcess.kill('SIGTERM');
+
+                // Force kill after 5 seconds if still running
+                setTimeout(() => {
+                    if (!childProcess.killed) {
+                        childProcess.kill('SIGKILL');
+                    }
+                }, 5000);
+
+                reject(new Error(`Command timed out after ${timeoutMs}ms`));
+            }, timeoutMs);
+
+            childProcess.stdout?.on('data', (data) => {
+                if (stdout.length + data.length > MAX_OUTPUT_SIZE) {
+                    outputExceeded = true;
+                    childProcess.kill('SIGTERM');
+                    return;
+                }
                 stdout += data.toString();
             });
 
-            process.stderr?.on('data', (data) => {
+            childProcess.stderr?.on('data', (data) => {
+                if (stderr.length + data.length > MAX_OUTPUT_SIZE) {
+                    outputExceeded = true;
+                    childProcess.kill('SIGTERM');
+                    return;
+                }
                 stderr += data.toString();
             });
 
-            process.on('close', (code) => {
+            childProcess.on('close', (code) => {
+                clearTimeout(timeout);
+
+                if (isTimedOut) {
+                    return; // Already rejected in timeout handler
+                }
+
+                if (outputExceeded) {
+                    reject(new Error('Process output exceeded maximum size (10MB)'));
+                    return;
+                }
+
                 resolve({
                     exitCode: code || 0,
                     stdout: stdout.trim(),
@@ -197,8 +288,11 @@ except Exception as e:
                 });
             });
 
-            process.on('error', (error) => {
-                reject(error);
+            childProcess.on('error', (error) => {
+                clearTimeout(timeout);
+                if (!isTimedOut) {
+                    reject(error);
+                }
             });
         });
     }

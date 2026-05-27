@@ -5,6 +5,14 @@ All notable changes to the "MarkItDown" extension will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-05-27
+
+Documentation only. No code or behavior changes from 0.3.0.
+
+### Changed
+- Rewrote the README: centered header, accurate feature/format descriptions, architecture diagram, and corrected setup notes.
+- Replaced the retired shields.io Visual Studio Marketplace badges (version/installs/downloads/rating) with `vsmarketplacebadges.dev`, which returns live data. Removed dead links.
+
 ## [0.3.0] - 2026-05-27
 
 First public update since 0.1.1. (0.2.0 was prepared but never published to the

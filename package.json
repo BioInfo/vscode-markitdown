@@ -2,7 +2,7 @@
   "name": "markitdown-vscode",
   "displayName": "MarkItDown",
   "description": "Convert PDF, DOCX, PPTX, XLSX, images, audio, and more to Markdown with one click",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "bioinfo",
   "author": {
     "name": "bioinfo",

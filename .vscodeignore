@@ -26,3 +26,9 @@ vsc-extension-quickstart.md
 **/coverage/**
 **/.vscode-test/**
 **/.vscode/**
+scripts/**
+.test-venv/**
+**/__pycache__/**
+out/test/**
+.claude/**
+CLAUDE.md

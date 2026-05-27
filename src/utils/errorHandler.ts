@@ -17,23 +17,26 @@ export interface MarkitdownError {
 }
 
 export class ErrorHandler {
-    private outputChannel: vscode.OutputChannel;
+    public readonly outputChannel: vscode.OutputChannel;
+    private lineCount: number = 0;
+    private static readonly MAX_LINES = 10000;
 
     constructor() {
         this.outputChannel = vscode.window.createOutputChannel('MarkItDown');
     }
 
     public handleError(error: any, context: string): void {
-        const markitdownError = this.categorizeError(error);
-        
+        const markitdownError = this.categorize(error);
+
         // Log detailed error to output channel
         this.logToOutput(markitdownError, context, error);
-        
+
         // Show user-friendly notification
         this.showUserNotification(markitdownError);
     }
 
-    private categorizeError(error: any): MarkitdownError {
+    /** Map an arbitrary thrown value to a categorized error. Public for testing. */
+    public categorize(error: any): MarkitdownError {
         if (typeof error === 'string') {
             return {
                 category: ErrorCategory.Unknown,
@@ -91,20 +94,39 @@ export class ErrorHandler {
     }
 
     private logToOutput(error: MarkitdownError, context: string, originalError: any): void {
+        // Check if we need to clear the output channel to prevent unbounded growth
+        if (this.lineCount > ErrorHandler.MAX_LINES) {
+            this.outputChannel.clear();
+            this.outputChannel.appendLine('='.repeat(80));
+            this.outputChannel.appendLine('Output log cleared after reaching size limit');
+            this.outputChannel.appendLine(`Maximum lines: ${ErrorHandler.MAX_LINES}`);
+            this.outputChannel.appendLine('='.repeat(80));
+            this.lineCount = 4;
+        }
+
         const timestamp = new Date().toISOString();
         this.outputChannel.appendLine(`[${timestamp}] ${context}`);
+        this.lineCount++;
+
         this.outputChannel.appendLine(`Category: ${error.category}`);
+        this.lineCount++;
+
         this.outputChannel.appendLine(`Message: ${error.message}`);
-        
+        this.lineCount++;
+
         if (error.details) {
             this.outputChannel.appendLine(`Details: ${error.details}`);
+            this.lineCount++;
         }
-        
+
         if (originalError && originalError.stack) {
+            const stackLines = originalError.stack.split('\n').length;
             this.outputChannel.appendLine(`Stack: ${originalError.stack}`);
+            this.lineCount += stackLines;
         }
-        
+
         this.outputChannel.appendLine('---');
+        this.lineCount++;
     }
 
     private showUserNotification(error: MarkitdownError): void {

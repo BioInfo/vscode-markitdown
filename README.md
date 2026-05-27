@@ -23,14 +23,14 @@ Stop leaving your editor to convert a file. Right-click a `.pdf`, `.docx`, `.ppt
 ## ✨ Features
 
 - **One-click conversion** from the Explorer context menu or the Command Palette
-- **Documents** — PDF, DOCX, PPTX, XLSX
-- **Web & data** — HTML, CSV, JSON, XML
-- **Images** — PNG, JPG, JPEG, GIF (EXIF/metadata; not OCR)
-- **Audio** — MP3, WAV transcription (uses network speech recognition)
-- **Archives** — ZIP, processed recursively
-- **Batch & multi-select** — pick several files, or select a group in the Explorer, and convert them all
-- **Progress and clear errors** — a progress notification per conversion, with a per-file summary on batches
-- **Safe output** — writes `name.md` next to the source, with numbered variants instead of clobbering existing files
+- **Documents**: PDF, DOCX, PPTX, XLSX
+- **Web & data**: HTML, CSV, JSON, XML
+- **Images**: PNG, JPG, JPEG, GIF (EXIF/metadata; not OCR)
+- **Audio**: MP3, WAV transcription (uses network speech recognition)
+- **Archives**: ZIP, processed recursively
+- **Batch & multi-select**: pick several files, or select a group in the Explorer, and convert them all
+- **Progress and clear errors**: a progress notification per conversion, with a per-file summary on batches
+- **Safe output**: writes `name.md` next to the source, with numbered variants instead of clobbering existing files
 
 ## 📦 Installation
 
@@ -56,9 +56,9 @@ Stop leaving your editor to convert a file. Right-click a `.pdf`, `.docx`, `.ppt
 
 ## 🎯 Usage
 
-**Explorer** — right-click a supported file (or select several), choose **Convert to Markdown**.
+**Explorer**: right-click a supported file (or select several), choose **Convert to Markdown**.
 
-**Command Palette** — `Ctrl/Cmd+Shift+P` → **MarkItDown: Convert File to Markdown**, then pick one or more files.
+**Command Palette**: `Ctrl/Cmd+Shift+P` → **MarkItDown: Convert File to Markdown**, then pick one or more files.
 
 The converted `.md` lands in the same folder as the source. By default it opens automatically on success.
 
@@ -113,13 +113,13 @@ Tabular formats (CSV, XLSX, DOCX tables, HTML) map to Markdown tables; PDFs extr
 
 ## 🐛 Troubleshooting
 
-**"Python not found"** — install Python 3.10+ and make sure `python --version` works in a terminal. Get it from [python.org](https://www.python.org/downloads/).
+**"Python not found"**: install Python 3.10+ and make sure `python --version` works in a terminal. Get it from [python.org](https://www.python.org/downloads/).
 
-**"Conversion failed"** — open the Output panel (`View > Output`, select **MarkItDown**) for the full error. Check the file opens in its native app and isn't password-protected.
+**"Conversion failed"**: open the Output panel (`View > Output`, select **MarkItDown**) for the full error. Check the file opens in its native app and isn't password-protected.
 
-**Empty Markdown output** — common for image files and image-only (scanned) PDFs. markitdown extracts text and metadata, not OCR, so a file with no embedded text produces an empty result. The extension now tells you when this happens.
+**Empty Markdown output**: common for image files and image-only (scanned) PDFs. markitdown extracts text and metadata, not OCR, so a file with no embedded text produces an empty result. The extension now tells you when this happens.
 
-**Still stuck?** — if the environment seems broken, delete the extension's `markitdown-venv` storage folder and reload VS Code; it rebuilds automatically. Otherwise, [open an issue](https://github.com/BioInfo/vscode-markitdown/issues/new) with your VS Code version, Python version, the file type, and the Output-panel error.
+**Still stuck?** If the environment seems broken, delete the extension's `markitdown-venv` storage folder and reload VS Code; it rebuilds automatically. Otherwise, [open an issue](https://github.com/BioInfo/vscode-markitdown/issues/new) with your VS Code version, Python version, the file type, and the Output-panel error.
 
 ## 🛠️ Development
 
@@ -140,7 +140,7 @@ Issues and pull requests are welcome.
 
 ## 📄 License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
 
 ## 🙏 Acknowledgments
 

@@ -6,3 +6,6 @@ node_modules
 .test-venv
 __pycache__
 python/__pycache__
+memory-bank/
+CLAUDE.md
+.claude/

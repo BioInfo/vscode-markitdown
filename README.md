@@ -6,10 +6,10 @@
 
 **Turn PDFs, Word docs, slides, spreadsheets, web pages, and data files into clean Markdown. One click, right inside your editor.**
 
-[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/bioinfo.markitdown-vscode?style=flat-square&color=007ACC&label=Marketplace&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=bioinfo.markitdown-vscode)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/bioinfo.markitdown-vscode?style=flat-square&color=007ACC&label=Installs)](https://marketplace.visualstudio.com/items?itemName=bioinfo.markitdown-vscode)
-[![Downloads](https://img.shields.io/visual-studio-marketplace/d/bioinfo.markitdown-vscode?style=flat-square&color=0aa)](https://marketplace.visualstudio.com/items?itemName=bioinfo.markitdown-vscode)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/bioinfo.markitdown-vscode?style=flat-square&color=brightgreen)](https://marketplace.visualstudio.com/items?itemName=bioinfo.markitdown-vscode&ssr=false#review-details)
+[![Marketplace](https://vsmarketplacebadges.dev/version/bioinfo.markitdown-vscode.svg?style=flat-square&label=Marketplace&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=bioinfo.markitdown-vscode)
+[![Installs](https://vsmarketplacebadges.dev/installs/bioinfo.markitdown-vscode.svg?style=flat-square&label=Installs&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=bioinfo.markitdown-vscode)
+[![Downloads](https://vsmarketplacebadges.dev/downloads/bioinfo.markitdown-vscode.svg?style=flat-square&label=Downloads&color=0aa)](https://marketplace.visualstudio.com/items?itemName=bioinfo.markitdown-vscode)
+[![Rating](https://vsmarketplacebadges.dev/rating-star/bioinfo.markitdown-vscode.svg?style=flat-square&label=Rating)](https://marketplace.visualstudio.com/items?itemName=bioinfo.markitdown-vscode&ssr=false#review-details)
 [![License: MIT](https://img.shields.io/github/license/BioInfo/vscode-markitdown?style=flat-square&color=lightgrey)](LICENSE)
 
 [Install](#-installation) · [Features](#-features) · [Formats](#-supported-formats) · [Usage](#-usage) · [How it works](#%EF%B8%8F-how-it-works) · [Troubleshooting](#-troubleshooting)

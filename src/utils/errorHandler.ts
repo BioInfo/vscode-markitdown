@@ -26,7 +26,7 @@ export class ErrorHandler {
     }
 
     public handleError(error: any, context: string): void {
-        const markitdownError = this.categorizeError(error);
+        const markitdownError = this.categorize(error);
 
         // Log detailed error to output channel
         this.logToOutput(markitdownError, context, error);
@@ -35,7 +35,8 @@ export class ErrorHandler {
         this.showUserNotification(markitdownError);
     }
 
-    private categorizeError(error: any): MarkitdownError {
+    /** Map an arbitrary thrown value to a categorized error. Public for testing. */
+    public categorize(error: any): MarkitdownError {
         if (typeof error === 'string') {
             return {
                 category: ErrorCategory.Unknown,

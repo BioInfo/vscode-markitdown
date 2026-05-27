@@ -2,7 +2,7 @@
   "name": "markitdown-vscode",
   "displayName": "MarkItDown",
   "description": "Convert PDF, DOCX, PPTX, XLSX, images, audio, and more to Markdown with one click",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "bioinfo",
   "author": {
     "name": "bioinfo",
@@ -89,9 +89,10 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "npm run compile && npm run lint && npm run test:functional",
+    "test:functional": "node scripts/functional-test.mjs",
+    "test:vscode": "npm run compile && node ./out/test/runTest.js"
   },
   "devDependencies": {
     "@types/vscode": "^1.74.0",

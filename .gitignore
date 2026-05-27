@@ -3,3 +3,6 @@ node_modules
 .vscode-test/
 *.vsix
 .DS_Store
+.test-venv
+__pycache__
+python/__pycache__

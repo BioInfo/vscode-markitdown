@@ -5,7 +5,47 @@ All notable changes to the "MarkItDown" extension will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-05-27
+
+First public update since 0.1.1. (0.2.0 was prepared but never published to the
+Marketplace; its security hardening ships here as part of 0.3.0.)
+
+### Fixed
+- **DOCX and other conversions failing for many users.** The extension installed
+  an unpinned `markitdown[all]`, which on modern Python (3.13/3.14) silently
+  resolved to the ancient `markitdown 0.0.2` (weak DOCX handling, fails on
+  documents with embedded graphics) or failed to resolve at all. Now pins
+  `markitdown[docx,pptx,xlsx,xls,pdf,outlook,audio-transcription]>=0.1.6,<0.2.0`
+  with targeted extras that resolve cleanly on current Python.
+- **Reinstall-on-every-conversion.** The post-install health check did
+  `import docx` (python-docx), which markitdown does not depend on (it uses
+  `mammoth`), so the check always failed and reinstalled markitdown on every
+  run. The check now verifies the package via `importlib.metadata` and a real
+  `MarkItDown()` smoke test.
+- **Converted file did not open** until the success notification timed out;
+  it now opens immediately when `openFileOnSuccess` is enabled.
+- **Silent empty output** for images with no extractable text now produces a
+  clear warning (markitdown does metadata/EXIF, not OCR).
+
+### Added
+- First-run setup now shows a progress notification instead of running silently
+  for the minutes it can take to create the venv and install markitdown.
+- Explorer multi-select: right-clicking several files now converts all of them.
+- CLI functional test harness (`npm run test:functional`) that builds a venv and
+  converts real fixtures (DOCX-with-image, XLSX, PPTX, PDF, CSV, JSON, XML,
+  HTML, image) end-to-end. Real assertions in the unit suite.
+
+### Changed
+- Conversion now runs through a shipped `python/markitdown_runner.py` shared by
+  the extension and the test harness (single source of truth). Paths are passed
+  as process argv (no shell), which removes the injection surface without the
+  base64 encoding workaround.
+- Documentation corrected: images are metadata/EXIF extraction, not OCR; Python
+  3.10+ is required.
+
 ## [0.2.0] - 2025-10-21
+
+> Note: prepared but never published to the Marketplace; folded into 0.3.0.
 
 ### Security
 - **CRITICAL**: Fixed path injection vulnerability in Python conversion script using base64 encoding

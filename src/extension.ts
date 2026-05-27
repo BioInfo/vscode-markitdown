@@ -6,70 +6,73 @@ import { ConfigurationManager } from './config/configurationManager';
 import { ErrorHandler } from './utils/errorHandler';
 
 let orchestrator: ConversionOrchestrator | null = null;
-let initializePromise: Promise<void> | null = null;
+let initializePromise: Promise<ConversionOrchestrator> | null = null;
 let errorHandler: ErrorHandler | null = null;
 
-async function performInitialization(context: vscode.ExtensionContext): Promise<void> {
-    console.log('MarkItDown extension is being activated');
+async function performInitialization(
+    context: vscode.ExtensionContext,
+    progress: vscode.Progress<{ message?: string; increment?: number }>
+): Promise<ConversionOrchestrator> {
+    console.log('MarkItDown: initializing');
 
-    try {
-        // Initialize core components
-        const configManager = new ConfigurationManager();
+    const configManager = new ConfigurationManager();
+    if (!errorHandler) {
         errorHandler = new ErrorHandler();
-        const pythonManager = new PythonEnvironmentManager(context, errorHandler);
-
-        // Initialize Python environment
-        await pythonManager.initialize();
-
-        // Create conversion orchestrator
-        orchestrator = new ConversionOrchestrator(
-            pythonManager,
-            configManager,
-            errorHandler
-        );
-
-        vscode.window.showInformationMessage('MarkItDown extension activated successfully!');
-        console.log('MarkItDown extension activated successfully');
-
-    } catch (error) {
-        if (!errorHandler) {
-            errorHandler = new ErrorHandler();
-        }
-        errorHandler.handleError(error, 'Failed to activate MarkItDown extension');
-        throw error;
     }
+    const pythonManager = new PythonEnvironmentManager(context, errorHandler);
+
+    await pythonManager.initialize(progress);
+
+    orchestrator = new ConversionOrchestrator(pythonManager, configManager, errorHandler);
+    console.log('MarkItDown: initialized');
+    return orchestrator;
 }
 
-export async function activate(context: vscode.ExtensionContext) {
-    // Ensure initialization only happens once
+/**
+ * Lazily initialize on first use, wrapped in a progress notification. The
+ * first run creates a venv and installs markitdown (tens of seconds to a few
+ * minutes), so doing this silently made the extension look hung. Subsequent
+ * calls reuse the cached promise and return immediately.
+ */
+function ensureInitialized(context: vscode.ExtensionContext): Promise<ConversionOrchestrator> {
     if (!initializePromise) {
-        initializePromise = performInitialization(context);
+        initializePromise = (async () => {
+            try {
+                return await vscode.window.withProgress(
+                    {
+                        location: vscode.ProgressLocation.Notification,
+                        title: 'MarkItDown: setting up (first run)',
+                        cancellable: false
+                    },
+                    (progress) => performInitialization(context, progress)
+                );
+            } catch (error) {
+                // Reset so a later invocation can retry after the user fixes
+                // the underlying problem (e.g. installs Python).
+                initializePromise = null;
+                throw error;
+            }
+        })();
     }
+    return initializePromise;
+}
 
-    // Register commands immediately (before initialization completes)
+export function activate(context: vscode.ExtensionContext) {
     const convertCommand = vscode.commands.registerCommand(
         'markitdown.convertFile',
-        async (uri?: vscode.Uri) => {
+        async (uri?: vscode.Uri, selectedUris?: vscode.Uri[]) => {
             try {
-                // Wait for initialization to complete
-                if (!initializePromise) {
-                    vscode.window.showErrorMessage('MarkItDown extension not initialized');
-                    return;
-                }
+                const orch = await ensureInitialized(context);
 
-                await initializePromise;
-
-                if (!orchestrator) {
-                    vscode.window.showErrorMessage('MarkItDown orchestrator not available');
-                    return;
-                }
-
-                if (uri) {
-                    // Called from context menu with specific file
-                    await orchestrator.convertFile(uri);
+                // Explorer multi-select passes the clicked uri plus the full
+                // selection as the second arg; prefer the selection when present.
+                let targets: vscode.Uri[];
+                if (selectedUris && selectedUris.length > 0) {
+                    targets = selectedUris;
+                } else if (uri) {
+                    targets = [uri];
                 } else {
-                    // Called from command palette - show file picker
-                    const fileUris = await vscode.window.showOpenDialog({
+                    const picked = await vscode.window.showOpenDialog({
                         canSelectMany: true,
                         openLabel: 'Convert to Markdown',
                         filters: {
@@ -80,64 +83,13 @@ export async function activate(context: vscode.ExtensionContext) {
                             ]
                         }
                     });
-
-                    if (fileUris && fileUris.length > 0) {
-                        // Track batch conversion results
-                        const results: {
-                            succeeded: string[];
-                            failed: Array<{ path: string; error: string }>;
-                        } = {
-                            succeeded: [],
-                            failed: []
-                        };
-
-                        // Process all files and collect results
-                        for (const fileUri of fileUris) {
-                            try {
-                                await orchestrator.convertFile(fileUri);
-                                results.succeeded.push(fileUri.fsPath);
-                            } catch (error) {
-                                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                                results.failed.push({
-                                    path: fileUri.fsPath,
-                                    error: errorMessage
-                                });
-                            }
-                        }
-
-                        // Report aggregate results
-                        if (results.failed.length > 0) {
-                            const totalFiles = fileUris.length;
-                            const succeededCount = results.succeeded.length;
-                            const failedCount = results.failed.length;
-
-                            let message = `Batch conversion completed: ${succeededCount} of ${totalFiles} files converted successfully.`;
-
-                            if (failedCount > 0) {
-                                message += `\n\nFailed files (${failedCount}):`;
-                                results.failed.forEach(f => {
-                                    const fileName = path.basename(f.path);
-                                    message += `\n- ${fileName}: ${f.error}`;
-                                });
-                            }
-
-                            vscode.window.showWarningMessage(
-                                `Batch conversion: ${succeededCount}/${totalFiles} succeeded`,
-                                'Show Details'
-                            ).then(selection => {
-                                if (selection === 'Show Details' && errorHandler) {
-                                    errorHandler.outputChannel.show();
-                                }
-                            });
-
-                            console.log(message);
-                        } else if (results.succeeded.length > 1) {
-                            vscode.window.showInformationMessage(
-                                `Successfully converted ${results.succeeded.length} files to Markdown`
-                            );
-                        }
+                    if (!picked || picked.length === 0) {
+                        return;
                     }
+                    targets = picked;
                 }
+
+                await convertTargets(orch, targets);
             } catch (error) {
                 if (errorHandler) {
                     errorHandler.handleError(error, 'Failed to convert file');
@@ -149,13 +101,52 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(convertCommand);
+}
 
-    // Wait for initialization to complete
-    await initializePromise;
+async function convertTargets(orch: ConversionOrchestrator, targets: vscode.Uri[]): Promise<void> {
+    if (targets.length === 1) {
+        // Single file: orchestrator shows its own progress + result.
+        await orch.convertFile(targets[0]);
+        return;
+    }
+
+    const succeeded: string[] = [];
+    const failed: Array<{ path: string; error: string }> = [];
+
+    for (const target of targets) {
+        try {
+            await orch.convertFile(target);
+            succeeded.push(target.fsPath);
+        } catch (error) {
+            failed.push({
+                path: target.fsPath,
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+
+    if (failed.length === 0) {
+        vscode.window.showInformationMessage(
+            `Converted ${succeeded.length} files to Markdown`
+        );
+        return;
+    }
+
+    const detail = failed.map(f => `- ${path.basename(f.path)}: ${f.error}`).join('\n');
+    console.log(
+        `Batch conversion: ${succeeded.length}/${targets.length} succeeded.\nFailed:\n${detail}`
+    );
+    vscode.window.showWarningMessage(
+        `MarkItDown: ${succeeded.length}/${targets.length} converted, ${failed.length} failed`,
+        'Show Details'
+    ).then(selection => {
+        if (selection === 'Show Details' && errorHandler) {
+            errorHandler.outputChannel.show();
+        }
+    });
 }
 
 export function deactivate() {
-    console.log('MarkItDown extension is being deactivated');
     if (orchestrator) {
         orchestrator.dispose();
     }

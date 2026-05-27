@@ -9,40 +9,43 @@ suite('ErrorHandler Test Suite', () => {
     });
 
     teardown(() => {
-        if (errorHandler) {
-            errorHandler.dispose();
-        }
+        errorHandler?.dispose();
     });
 
-    test('Should categorize unsupported format errors correctly', () => {
-        const error = new Error('Unsupported file format: .xyz');
-        // Note: categorizeError is private, we're testing through handleError
-        // In production, we'd expose a public method or test through observable behavior
-        assert.ok(errorHandler, 'ErrorHandler should be instantiated');
+    test('categorizes unsupported format errors', () => {
+        const result = errorHandler.categorize(new Error('Unsupported file format: .xyz'));
+        assert.strictEqual(result.category, ErrorCategory.UnsupportedFormat);
     });
 
-    test('Should categorize corrupt input errors correctly', () => {
-        const error = new Error('File appears to be corrupt');
-        assert.ok(errorHandler, 'ErrorHandler should be instantiated');
+    test('categorizes corrupt/invalid input errors', () => {
+        const result = errorHandler.categorize(new Error('File is corrupt'));
+        assert.strictEqual(result.category, ErrorCategory.CorruptInput);
     });
 
-    test('Should categorize Python environment errors correctly', () => {
-        const error = new Error('Python command not found');
-        assert.ok(errorHandler, 'ErrorHandler should be instantiated');
+    test('categorizes Python environment errors', () => {
+        const result = errorHandler.categorize(new Error('python command not found'));
+        assert.strictEqual(result.category, ErrorCategory.EnvironmentMissing);
     });
 
-    test('Should handle string errors', () => {
-        const error = 'Simple string error';
-        assert.ok(errorHandler, 'ErrorHandler should be instantiated');
+    test('categorizes permission/access errors as IO', () => {
+        const result = errorHandler.categorize(new Error('Permission denied accessing file'));
+        assert.strictEqual(result.category, ErrorCategory.IOError);
     });
 
-    test('Should handle unknown errors', () => {
-        const error = { custom: 'error object' };
-        assert.ok(errorHandler, 'ErrorHandler should be instantiated');
+    test('categorizes a generic Error as MarkitdownError and keeps the message', () => {
+        const result = errorHandler.categorize(new Error('something specific went wrong'));
+        assert.strictEqual(result.category, ErrorCategory.MarkitdownError);
+        assert.strictEqual(result.message, 'something specific went wrong');
     });
 
-    test('Should handle permission/access errors', () => {
-        const error = new Error('Permission denied accessing file');
-        assert.ok(errorHandler, 'ErrorHandler should be instantiated');
+    test('categorizes string errors as Unknown', () => {
+        const result = errorHandler.categorize('plain string error');
+        assert.strictEqual(result.category, ErrorCategory.Unknown);
+        assert.strictEqual(result.message, 'plain string error');
+    });
+
+    test('categorizes non-Error objects as Unknown', () => {
+        const result = errorHandler.categorize({ custom: 'object' });
+        assert.strictEqual(result.category, ErrorCategory.Unknown);
     });
 });

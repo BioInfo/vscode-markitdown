@@ -57,28 +57,45 @@ export class ConversionOrchestrator {
             }, async (progress) => {
                 progress.report({ increment: 0, message: 'Initializing conversion...' });
                 
-                try {
-                    progress.report({ increment: 30, message: 'Converting file...' });
-                    await this.pythonManager.convertFile(inputPath, outputPath);
-                    
-                    progress.report({ increment: 70, message: 'Finalizing...' });
-                    
-                    // Show success notification
-                    const fileName = path.basename(outputPath);
+                progress.report({ increment: 30, message: 'Converting file...' });
+                const { chars } = await this.pythonManager.convertFile(inputPath, outputPath);
+
+                progress.report({ increment: 70, message: 'Finalizing...' });
+
+                const fileName = path.basename(outputPath);
+
+                if (chars === 0) {
+                    // markitdown extracts text/metadata; it does not OCR images.
+                    // A file with no extractable text yields an empty .md — tell
+                    // the user instead of silently leaving a blank file.
+                    vscode.window.showWarningMessage(
+                        `Converted ${path.basename(inputPath)}, but no text was extracted. ` +
+                        `Image files without embedded text produce empty output (markitdown ` +
+                        `does not perform OCR).`,
+                        'Open File'
+                    ).then(selection => {
+                        if (selection === 'Open File') {
+                            this.openFile(outputPath);
+                        }
+                    });
+                } else {
+                    // Open immediately when configured — don't gate opening on
+                    // the notification's promise (which only resolves on click
+                    // or timeout, so the file appeared to "never open").
+                    if (config.openFileOnSuccess) {
+                        await this.openFile(outputPath);
+                    }
                     vscode.window.showInformationMessage(
                         `Successfully converted to ${fileName}`,
                         'Open File'
                     ).then(selection => {
-                        if (selection === 'Open File' || config.openFileOnSuccess) {
+                        if (selection === 'Open File') {
                             this.openFile(outputPath);
                         }
                     });
-                    
-                    progress.report({ increment: 100, message: 'Complete!' });
-                    
-                } catch (error) {
-                    throw error;
                 }
+
+                progress.report({ increment: 100, message: 'Complete!' });
             });
 
         } catch (error) {

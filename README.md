@@ -11,8 +11,8 @@ Convert various file formats to Markdown directly within VS Code with one click.
 - **🚀 One-Click Conversion**: Convert files directly from the Command Palette or File Explorer context menu
 - **📄 Document Support**: PDF, DOCX, PPTX, XLSX files
 - **🌐 Web & Data**: HTML, CSV, JSON, XML files
-- **🖼️ Image OCR**: Extract text from PNG, JPG, JPEG, GIF images
-- **🎵 Audio Transcription**: Convert MP3, WAV audio to text
+- **🖼️ Image Metadata**: Extract EXIF/metadata from PNG, JPG, JPEG, GIF (not OCR — images without embedded text produce empty output unless an LLM is configured in markitdown)
+- **🎵 Audio Transcription**: Convert MP3, WAV audio to text (requires network speech recognition)
 - **📦 Archive Processing**: Recursively convert supported files within ZIP archives
 - **⚡ Progress Tracking**: Real-time progress notifications for long conversions
 - **🔧 Smart Output**: Automatic collision detection with numbered suffixes
@@ -28,7 +28,7 @@ Convert various file formats to Markdown directly within VS Code with one click.
 
 ### First Use
 
-1. **Ensure Python is installed** (3.7+ required)
+1. **Ensure Python is installed** (3.10+ required)
 2. **Right-click any supported file** in the File Explorer
 3. **Select "Convert to Markdown"**
 4. **Wait for first-time setup** (installs dependencies automatically)
@@ -42,8 +42,8 @@ Convert various file formats to Markdown directly within VS Code with one click.
 | **Presentations** | `.pptx` | Microsoft PowerPoint presentations |
 | **Spreadsheets** | `.xlsx` | Microsoft Excel spreadsheets |
 | **Web & Structured** | `.html`, `.csv`, `.json`, `.xml` | Web pages, data files |
-| **Images** | `.png`, `.jpg`, `.jpeg`, `.gif` | Images with OCR text extraction |
-| **Audio** | `.mp3`, `.wav` | Audio files with speech transcription |
+| **Images** | `.png`, `.jpg`, `.jpeg`, `.gif` | EXIF/metadata extraction (no OCR) |
+| **Audio** | `.mp3`, `.wav` | Speech transcription (needs network) |
 | **Archives** | `.zip` | ZIP files (recursively processes contents) |
 
 ## 🎯 Usage
@@ -75,7 +75,7 @@ Access settings via `File > Preferences > Settings` and search for "MarkItDown":
 ## 🔧 Requirements
 
 - **VS Code**: Version 1.74.0 or higher
-- **Python**: Version 3.7 or higher (must be in PATH)
+- **Python**: Version 3.10 or higher (must be in PATH)
 - **Internet Connection**: Required for first-time dependency installation
 
 ### Automatic Setup
@@ -101,41 +101,40 @@ This design ensures:
 
 ## 📊 Output Examples
 
-### JSON to Markdown
-**Input** (`data.json`):
-```json
-{
-  "name": "Project Alpha",
-  "version": "1.0.0",
-  "features": ["fast", "reliable", "secure"]
-}
-```
+### CSV to Markdown
+A `.csv` becomes a Markdown table:
 
-**Output** (`data.md`):
 ```markdown
-# JSON Document
-
-**name**: Project Alpha  
-**version**: 1.0.0  
-**features**: 
-- fast
-- reliable  
-- secure
+| col1 | col2 |
+| --- | --- |
+| 1 | 2 |
+| 3 | 4 |
 ```
 
-### PDF to Markdown
-Converts PDF documents while preserving:
-- Text formatting and structure
-- Headers and sections
-- Lists and tables
-- Basic styling information
+### DOCX to Markdown
+A Word document with a heading, body text, and a table converts to:
+
+```markdown
+Quarterly Report
+
+This document has an embedded graphic and a table.
+
+|  |  |
+| --- | --- |
+| Metric | Value |
+| Revenue | $1.2M |
+```
+
+Structured/tabular formats (CSV, XLSX, DOCX tables, HTML) map to Markdown
+tables; PDFs extract their text via `pdfminer`. Output fidelity depends on the
+source file and the underlying `markitdown` library.
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
 **"Python not found"**
-- Ensure Python 3.7+ is installed and in your PATH
+- Ensure Python 3.10+ is installed and in your PATH
 - Try running `python --version` in terminal
 - Install from [python.org](https://www.python.org/downloads/)
 
@@ -172,6 +171,16 @@ npm run compile
 ```
 
 Press `F5` to launch the Extension Development Host for testing.
+
+### Testing
+```bash
+npm test            # compile + lint + functional conversion tests (CLI, no GUI)
+npm run test:vscode # extension-host unit tests (downloads VS Code)
+```
+`npm run test:functional` builds a Python venv, installs the pinned markitdown
+spec, and converts the fixtures in `test-files/fixtures/` through the same
+`python/markitdown_runner.py` the extension ships — asserting real output, no
+manual steps.
 
 ## 📝 Changelog
 

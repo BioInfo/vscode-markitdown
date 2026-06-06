@@ -20,6 +20,8 @@
 
 Stop leaving your editor to convert a file. Right-click a `.pdf`, `.docx`, `.pptx`, `.xlsx`, or a dozen other formats and get a clean `.md` next to it. MarkItDown wraps Microsoft's [`markitdown`](https://github.com/microsoft/markitdown) library and manages its own isolated Python environment, so there is nothing to configure beyond having Python on your PATH.
 
+Trusted by 25,000+ developers on the VS Code Marketplace.
+
 ## ✨ Features
 
 - **One-click conversion** from the Explorer context menu or the Command Palette

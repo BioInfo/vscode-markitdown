@@ -5,6 +5,16 @@ All notable changes to the "MarkItDown" extension will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-11-14
+
+### Fixed
+- **"Python environment not available" with a supported Python installed** ([#5](https://github.com/BioInfo/vscode-markitdown/issues/5)). The extension reused its saved virtual environment whenever it started, without checking its Python version. A venv built by an older Python survived extension updates, and pip inside it could not see any installable markitdown. The venv is now rebuilt unless it runs Python 3.10 to 3.14.
+- Python discovery now skips interpreters outside 3.10 to 3.14 and tries the next one (`python`, `python3`, `py` on Windows). If none fits, the error names each interpreter found and its version.
+- When pip finds no installable markitdown, the extension rebuilds the venv and retries once. If that fails too, the error says to check access to pypi.org (proxy or firewall) and shows the venv's Python version.
+
+### Changed
+- README install count updated to 75,000+.
+
 ## [0.3.1] - 2026-05-27
 
 Documentation only. No code or behavior changes from 0.3.0.

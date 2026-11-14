@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
 import { ErrorHandler } from '../utils/errorHandler';
+import { parsePythonVersion, isSupportedPython, SUPPORTED_RANGE } from './pythonVersion';
 
 /**
  * markitdown install spec.
@@ -18,6 +19,7 @@ import { ErrorHandler } from '../utils/errorHandler';
  */
 const MARKITDOWN_SPEC =
     'markitdown[docx,pptx,xlsx,xls,pdf,outlook,audio-transcription]>=0.1.6,<0.2.0';
+
 
 export interface ConversionResult {
     /** Number of (trimmed) characters written to the output file. */
@@ -66,20 +68,41 @@ export class PythonEnvironmentManager {
         }
     }
 
+    private async getPythonVersion(executable: string): Promise<[number, number] | null> {
+        try {
+            const result = await this.executeCommand(executable, ['--version'], 10000);
+            if (result.exitCode !== 0) { return null; }
+            return parsePythonVersion(result.stdout + ' ' + result.stderr);
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Pick the first interpreter on PATH whose version markitdown supports.
+     * The process that runs VS Code can see a different `python` than your
+     * terminal does, so an interpreter that merely runs is not enough.
+     */
     private async findPythonExecutable(): Promise<string | null> {
         const candidates = process.platform === 'win32'
             ? ['python', 'python3', 'py']
             : ['python3', 'python'];
 
+        const rejected: string[] = [];
         for (const candidate of candidates) {
-            try {
-                const result = await this.executeCommand(candidate, ['--version'], 10000);
-                if (result.exitCode === 0) {
-                    return candidate;
-                }
-            } catch {
-                // Continue to next candidate
+            const version = await this.getPythonVersion(candidate);
+            if (version && isSupportedPython(version)) {
+                return candidate;
             }
+            if (version) {
+                rejected.push(`${candidate} (${version.join('.')})`);
+            }
+        }
+        if (rejected.length > 0) {
+            throw new Error(
+                `Found Python, but not a supported version: ${rejected.join(', ')}. ` +
+                `markitdown needs Python ${SUPPORTED_RANGE}.`
+            );
         }
         return null;
     }
@@ -91,20 +114,18 @@ export class PythonEnvironmentManager {
         if (!fs.existsSync(venvPythonPath)) {
             needsCreation = true;
         } else {
-            // Verify the existing venv interpreter still runs.
-            try {
-                const verifyResult = await this.executeCommand(venvPythonPath, ['--version'], 10000);
-                if (verifyResult.exitCode !== 0) {
-                    needsCreation = true;
-                }
-            } catch (error) {
-                console.warn(`Virtual environment appears corrupted: ${error}`);
+            // The venv lives in global storage and survives extension updates,
+            // so it may have been built by an older, unsupported Python. Pip in
+            // such a venv sees no installable markitdown at all
+            // ("from versions: )"). Rebuild unless it runs a supported version.
+            const venvVersion = await this.getPythonVersion(venvPythonPath);
+            if (!isSupportedPython(venvVersion)) {
+                console.warn(`Rebuilding virtual environment (venv Python: ${venvVersion?.join('.') ?? 'not runnable'})`);
                 needsCreation = true;
             }
 
-            if (needsCreation && fs.existsSync(this.venvPath)) {
-                console.log('Removing corrupted virtual environment…');
-                await fs.promises.rm(this.venvPath, { recursive: true, force: true });
+            if (needsCreation) {
+                await this.removeVirtualEnvironment();
             }
         }
 
@@ -144,14 +165,26 @@ export class PythonEnvironmentManager {
         console.log(`markitdown check failed (${check.stderr.trim()}); installing…`);
         progress?.report({ message: 'Installing markitdown (first run, may take a minute)…' });
 
-        const installResult = await this.executeCommand(venvPython, [
-            '-m', 'pip', 'install', '--upgrade', '--disable-pip-version-check', MARKITDOWN_SPEC
-        ], 600000); // 10 min: first install pulls numpy/onnxruntime/etc.
+        let installResult = await this.pipInstall(venvPython);
+
+        // An empty candidate list means pip saw no markitdown release it could
+        // use. Retry once in a freshly built venv before giving up.
+        if (installResult.exitCode !== 0 && /from versions:\s*(none)?\s*\)/.test(installResult.stderr)) {
+            console.warn('pip found no installable markitdown; rebuilding venv and retrying once');
+            await this.removeVirtualEnvironment();
+            await this.ensureVirtualEnvironment();
+            installResult = await this.pipInstall(venvPython);
+        }
 
         if (installResult.exitCode !== 0) {
+            const venvVersion = await this.getPythonVersion(venvPython);
+            const noCandidates = /from versions:\s*(none)?\s*\)/.test(installResult.stderr);
+            const hint = noCandidates
+                ? `pip could not see any markitdown release. Check that this machine can reach pypi.org ` +
+                  `(proxy or firewall settings), and that Python is ${SUPPORTED_RANGE}.`
+                : `A dependency may have no wheel for your platform, or Python is outside ${SUPPORTED_RANGE}.`;
             throw new Error(
-                `Failed to install markitdown. This often means your Python is too ` +
-                `old (3.10+ required) or a dependency has no wheel for your platform.\n` +
+                `Failed to install markitdown (venv Python ${venvVersion?.join('.') ?? 'unknown'}). ${hint}\n` +
                 `pip error: ${installResult.stderr}`
             );
         }
@@ -186,6 +219,19 @@ export class PythonEnvironmentManager {
         const match = result.stdout.match(/CHARS:(\d+)/);
         const chars = match ? parseInt(match[1], 10) : 0;
         return { chars };
+    }
+
+    private pipInstall(venvPython: string) {
+        return this.executeCommand(venvPython, [
+            '-m', 'pip', 'install', '--upgrade', '--disable-pip-version-check', MARKITDOWN_SPEC
+        ], 600000); // 10 min: first install pulls numpy/onnxruntime/etc.
+    }
+
+    private async removeVirtualEnvironment(): Promise<void> {
+        if (fs.existsSync(this.venvPath)) {
+            console.log('Removing virtual environment…');
+            await fs.promises.rm(this.venvPath, { recursive: true, force: true });
+        }
     }
 
     private getVenvPythonPath(): string {

@@ -15,7 +15,7 @@
  * Keep MARKITDOWN_SPEC in sync with src/python/environmentManager.ts.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { writeFileSync, existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -146,6 +146,24 @@ function main() {
       ok,
       detail: ok ? `${chars} chars, all markers present` : `missing markers: ${missing.join(', ')}`,
     });
+  }
+
+  // Runner contract: a fake Office/PDF file is rejected as corrupt (not
+  // "converted" by the plain-text fallback), and --no-clobber never overwrites.
+  for (const [name, body] of [['fake.docx', 'not a zip'], ['fake.pdf', 'no header']]) {
+    const input = path.join(tmp, name);
+    writeFileSync(input, body);
+    const r = run(py, ['-I', RUNNER, 'convert', input, input + '.md']);
+    const corrupt = r.status === 1 && /RESULT:.*"error_type": "corrupt"/.test(r.stdout);
+    results.push({ fixture: name, ok: corrupt, detail: corrupt ? 'rejected as corrupt' : `exit ${r.status}: ${r.stdout.trim()}` });
+  }
+  {
+    const input = path.join(FIXTURES, 'plain.docx');
+    const output = path.join(tmp, 'existing.md');
+    writeFileSync(output, 'KEEP');
+    const r = run(py, ['-I', RUNNER, 'convert', '--no-clobber', input, output]);
+    const kept = r.status === 1 && readFileSync(output, 'utf-8') === 'KEEP' && /"error_type": "exists"/.test(r.stdout);
+    results.push({ fixture: 'no-clobber', ok: kept, detail: kept ? 'existing file kept' : `exit ${r.status}, file now: ${readFileSync(output, 'utf-8').slice(0, 20)}` });
   }
 
   console.log('\n── Functional results ──');

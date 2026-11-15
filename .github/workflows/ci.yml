@@ -21,4 +21,13 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: npm ci
+      # Compile, lint, plain-Node unit tests, runner functional tests.
       - run: npm test
+      # Inside a real VS Code: builds the environment with pip (no uv on the
+      # runner) and converts files through the extension command.
+      - name: Extension tests (Linux, under a virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:vscode
+      - name: Extension tests
+        if: runner.os != 'Linux'
+        run: npm run test:vscode

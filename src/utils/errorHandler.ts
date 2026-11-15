@@ -1,32 +1,9 @@
 import * as vscode from 'vscode';
 
-export enum ErrorCategory {
-    UnsupportedFormat = 'UnsupportedFormat',
-    CorruptInput = 'CorruptInput',
-    MarkitdownError = 'MarkitdownError',
-    IOError = 'IOError',
-    EnvironmentMissing = 'EnvironmentMissing',
-    Unknown = 'Unknown'
-}
+import { categorize, ErrorCategory, MarkitdownError } from './errorCategory';
 
-export interface MarkitdownError {
-    category: ErrorCategory;
-    message: string;
-    details?: string;
-    suggestion?: string;
-}
-
-/**
- * An environment problem whose message is already written for the user
- * (which interpreter was found, what to fix). categorize() shows it verbatim
- * instead of replacing it with a generic keyword-matched message.
- */
-export class EnvironmentError extends Error {
-    constructor(message: string, public readonly suggestion?: string) {
-        super(message);
-        this.name = 'EnvironmentError';
-    }
-}
+export { ErrorCategory, EnvironmentError, ConversionError, categorize } from './errorCategory';
+export type { MarkitdownError } from './errorCategory';
 
 export class ErrorHandler {
     public readonly outputChannel: vscode.OutputChannel;
@@ -39,6 +16,9 @@ export class ErrorHandler {
 
     public handleError(error: any, context: string): void {
         const markitdownError = this.categorize(error);
+        if (markitdownError.category === ErrorCategory.Cancelled) {
+            return; // the user asked for it; nothing to report
+        }
 
         // Log detailed error to output channel
         this.logToOutput(markitdownError, context, error);
@@ -48,70 +28,20 @@ export class ErrorHandler {
     }
 
     /** Map an arbitrary thrown value to a categorized error. Public for testing. */
-    public categorize(error: any): MarkitdownError {
-        if (typeof error === 'string') {
-            return {
-                category: ErrorCategory.Unknown,
-                message: error
-            };
-        }
+    public categorize(error: unknown): MarkitdownError {
+        return categorize(error);
+    }
 
-        if (error instanceof EnvironmentError) {
-            return {
-                category: ErrorCategory.EnvironmentMissing,
-                message: error.message,
-                suggestion: error.suggestion,
-                details: error.stack
-            };
-        }
+    /** Append streamed process output, counting its lines toward the channel cap. */
+    public append(chunk: string): void {
+        this.outputChannel.append(chunk);
+        this.lineCount += (chunk.match(/\n/g) || []).length;
+    }
 
-        if (error instanceof Error) {
-            const message = error.message.toLowerCase();
-            
-            if (message.includes('unsupported') || message.includes('format')) {
-                return {
-                    category: ErrorCategory.UnsupportedFormat,
-                    message: 'File format not supported',
-                    suggestion: 'Please check that the file format is supported by MarkItDown'
-                };
-            }
-            
-            if (message.includes('corrupt') || message.includes('invalid')) {
-                return {
-                    category: ErrorCategory.CorruptInput,
-                    message: 'File appears to be corrupted or invalid',
-                    suggestion: 'Try opening the file in its native application to verify it\'s not corrupted'
-                };
-            }
-            
-            if (message.includes('python') || message.includes('command not found')) {
-                return {
-                    category: ErrorCategory.EnvironmentMissing,
-                    message: 'Python environment not available',
-                    suggestion: 'Please ensure Python is installed and available in your PATH'
-                };
-            }
-            
-            if (message.includes('permission') || message.includes('access')) {
-                return {
-                    category: ErrorCategory.IOError,
-                    message: 'File access error',
-                    suggestion: 'Check file permissions and ensure the file is not open in another application'
-                };
-            }
-            
-            return {
-                category: ErrorCategory.MarkitdownError,
-                message: error.message,
-                details: error.stack
-            };
-        }
-
-        return {
-            category: ErrorCategory.Unknown,
-            message: 'An unknown error occurred',
-            details: JSON.stringify(error)
-        };
+    /** Append a line to the MarkItDown output channel. */
+    public log(line: string): void {
+        this.outputChannel.appendLine(line);
+        this.lineCount++;
     }
 
     private logToOutput(error: MarkitdownError, context: string, originalError: any): void {
@@ -157,10 +87,12 @@ export class ErrorHandler {
 
         switch (error.category) {
             case ErrorCategory.EnvironmentMissing:
-                vscode.window.showErrorMessage(message, 'Show Output', 'Install Python')
+                vscode.window.showErrorMessage(message, 'Show Output', 'Rebuild Environment', 'Install Python')
                     .then(selection => {
                         if (selection === 'Show Output') {
                             this.outputChannel.show();
+                        } else if (selection === 'Rebuild Environment') {
+                            vscode.commands.executeCommand('markitdown.rebuildEnvironment');
                         } else if (selection === 'Install Python') {
                             vscode.env.openExternal(vscode.Uri.parse('https://www.python.org/downloads/'));
                         }

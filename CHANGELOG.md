@@ -5,6 +5,35 @@ All notable changes to the "MarkItDown" extension will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-11-14
+
+A full review of the codebase, not just the last fix. The main changes:
+
+### Added
+- **uv support.** When uv is installed, the environment builds in seconds, and uv can download Python if none is installed (`markitdown.useUv`).
+- **Folder conversion** and a single, cancellable progress bar for batches, with one summary at the end instead of a notification and editor tab per file.
+- Convert from the editor tab menu, or from the Command Palette with the file open.
+- **Commands:** "MarkItDown: Rebuild Environment" and "MarkItDown: Show Environment Info".
+- **Settings:** `outputDirectory`, `keepDataUris`, `audioTranscription`, `conversionTimeoutSeconds`, `useUv`, `pipIndexUrl`. VS Code's `http.proxy` is passed to the installer.
+- Setup and conversions can be cancelled. Installer output streams to the MarkItDown output channel.
+- End-to-end tests inside VS Code, run in CI on Linux, Windows and macOS.
+
+### Changed
+- **Audio transcription is off by default.** It sends audio to Google's speech service; turn it on with `markitdown.audioTranscription`. The docs now say so.
+- Existing environments upgrade to the newest markitdown 0.1.x on the next conversion (0.3.x left everyone on whatever was installed first).
+- If installing with one Python fails, the next installed Python is tried.
+
+### Fixed
+- Right-clicking `.xls`, `.htm`, `.epub`, `.ipynb`, `.msg` or `.m4a` offered a conversion that then failed with "File format not supported" (0.3.3).
+- A converter crash (killed by the OS, out of memory) was reported as a successful empty conversion.
+- After 100 numbered copies existed, the next conversion overwrote `name.md` even with overwrite off. Two inputs with the same name in one batch could also write the same file.
+- Two VS Code windows could build or delete the shared environment at the same time.
+- Every failure showed two error notifications, and a path containing words like "python" or "access" swapped the real message for an unrelated one.
+- A damaged `.docx`, `.pptx`, `.xlsx`, `.epub`, `.pdf`, `.xls` or `.msg` "converted" into garbage through the plain-text fallback. It is now reported as damaged.
+- Timeouts now stop the process and its children (the force-kill never fired before).
+- Non-ASCII error messages on Windows, and installs broken by `PIP_USER` or `PYTHONPATH` in the environment.
+- Clear message when Debian/Ubuntu Python lacks the venv module.
+
 ## [0.3.3] - 2026-11-14
 
 ### Fixed

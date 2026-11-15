@@ -24,15 +24,15 @@ Trusted by 75,000+ developers on the VS Code Marketplace.
 
 ## ✨ Features
 
-- **One-click conversion** from the Explorer context menu or the Command Palette
-- **Documents**: PDF, DOCX, PPTX, XLSX
+- **One-click conversion** from the Explorer, the editor tab menu or the Command Palette
+- **Documents**: PDF, DOCX, PPTX, XLSX, XLS, EPUB, Outlook MSG, Jupyter notebooks
 - **Web & data**: HTML, CSV, JSON, XML
 - **Images**: PNG, JPG, JPEG, GIF (EXIF/metadata; not OCR)
-- **Audio**: MP3, WAV transcription (uses network speech recognition)
+- **Audio**: MP3, WAV, M4A metadata, plus optional speech transcription (off by default, see below)
 - **Archives**: ZIP, processed recursively
-- **Batch & multi-select**: pick several files, or select a group in the Explorer, and convert them all
-- **Progress and clear errors**: a progress notification per conversion, with a per-file summary on batches
-- **Safe output**: writes `name.md` next to the source, with numbered variants instead of clobbering existing files
+- **Folders and batches**: right-click a folder, or select several files, and convert them all with one progress bar you can cancel
+- **Safe output**: writes `name.md` next to the source (or to a folder you choose), with numbered variants instead of overwriting
+- **Honest results**: a damaged or mislabelled file is reported as damaged instead of producing garbage
 
 ## 📦 Installation
 
@@ -42,27 +42,32 @@ Trusted by 75,000+ developers on the VS Code Marketplace.
 | **Command line** | `code --install-extension bioinfo.markitdown-vscode` |
 | **VSIX** | Grab the latest `.vsix` from [Releases](https://github.com/BioInfo/vscode-markitdown/releases) and run *Extensions: Install from VSIX…* |
 
-**First run** sets up an isolated Python virtual environment and installs a pinned, compatible `markitdown` build. This takes anywhere from a few seconds to a couple of minutes, shown in a progress notification. After that, conversions are instant.
+**First run** builds a private Python environment and installs `markitdown` into it. With [uv](https://docs.astral.sh/uv/) installed this takes seconds, and uv can download Python for you if you don't have it. Without uv it uses your Python 3.10 or newer and pip, which takes a minute or two. Progress shows in a notification you can cancel, and the install output streams to the **MarkItDown** output channel. After that, conversions start straight away.
+
+**Remote, WSL and Codespaces**: the extension runs on the remote side, so Python (or uv) needs to be installed there.
 
 ## 📋 Supported Formats
 
 | Category | Formats | Notes |
 |----------|---------|-------|
-| Documents | `.pdf` `.docx` | PDF text via `pdfminer`; Word via `mammoth` |
+| Documents | `.pdf` `.docx` `.epub` | PDF text via `pdfminer`; Word via `mammoth` |
 | Presentations | `.pptx` | Slides, titles, and bullet text |
-| Spreadsheets | `.xlsx` | Rendered as Markdown tables |
-| Web & structured | `.html` `.csv` `.json` `.xml` | Tables and structure preserved where possible |
-| Images | `.png` `.jpg` `.jpeg` `.gif` | EXIF/metadata only. No OCR, so images without embedded text produce empty output unless an LLM is configured in markitdown |
-| Audio | `.mp3` `.wav` | Speech-to-text (requires a network connection) |
+| Spreadsheets | `.xlsx` `.xls` | Rendered as Markdown tables |
+| Email & notebooks | `.msg` `.ipynb` | Outlook messages; Jupyter notebook cells |
+| Web & structured | `.html` `.htm` `.csv` `.json` `.xml` | Tables and structure preserved where possible |
+| Images | `.png` `.jpg` `.jpeg` `.gif` | EXIF/metadata only. No OCR, so images without embedded text produce empty output |
+| Audio | `.mp3` `.wav` `.m4a` | Metadata. Speech transcription only with `markitdown.audioTranscription` on, and it sends the audio to Google |
 | Archives | `.zip` | Recurses into supported files |
 
 ## 🎯 Usage
 
-**Explorer**: right-click a supported file (or select several), choose **Convert to Markdown**.
+**Explorer**: right-click a supported file, several files, or a folder, and choose **MarkItDown: Convert to Markdown**.
 
-**Command Palette**: `Ctrl/Cmd+Shift+P` → **MarkItDown: Convert File to Markdown**, then pick one or more files.
+**Editor**: right-click the tab of an open file, or run the command with the file active.
 
-The converted `.md` lands in the same folder as the source. By default it opens automatically on success.
+**Command Palette**: `Ctrl/Cmd+Shift+P` → **MarkItDown: Convert to Markdown**.
+
+Two more commands help when something goes wrong: **MarkItDown: Show Environment Info** prints the Python, markitdown version and settings in use, and **MarkItDown: Rebuild Environment** deletes the private environment and builds it again.
 
 ## ⚙️ Configuration
 
@@ -70,8 +75,15 @@ Search **MarkItDown** in Settings:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `markitdown.openFileOnSuccess` | `true` | Open the generated Markdown file after a successful conversion |
+| `markitdown.openFileOnSuccess` | `true` | Open the Markdown file after a single conversion |
 | `markitdown.overwriteExisting` | `false` | Overwrite an existing `.md` instead of creating a numbered variant |
+| `markitdown.outputDirectory` | empty | Folder for `.md` files. Empty = next to the source; relative paths start at the workspace folder |
+| `markitdown.keepDataUris` | `false` | Keep embedded images as base64 in the Markdown (DOCX, PPTX, HTML) |
+| `markitdown.audioTranscription` | `false` | Transcribe speech in audio files. **Sends the audio to Google's speech service** |
+| `markitdown.conversionTimeoutSeconds` | `600` | Stop a single conversion after this long |
+| `markitdown.pythonPath` | empty | Interpreter to build the environment with. Empty = search PATH |
+| `markitdown.useUv` | `true` | Use uv when it is installed |
+| `markitdown.pipIndexUrl` | empty | Package index or corporate mirror. VS Code's `http.proxy` is passed to the installer too |
 
 ## 🏗️ How It Works
 
@@ -85,7 +97,9 @@ VS Code (TypeScript)  ──spawn──▶  Python venv  ──▶  markitdown  
 
 - The extension never touches your system Python packages. It builds a dedicated virtual environment under the extension's storage and installs `markitdown` there.
 - File paths are passed to Python as process arguments (no shell), so filenames cannot inject commands.
-- A conversion that hangs is killed after a timeout, and oversized output is capped, so a bad file can't take down your editor.
+- A conversion that hangs is stopped after a timeout (with its child processes), you can cancel any conversion or setup, and oversized output is capped.
+- Several VS Code windows share one environment safely: a lock stops two windows from building it at once.
+- When a new version of the extension needs newer packages, the environment upgrades itself on the next conversion.
 
 ## 📊 Examples
 
@@ -117,13 +131,15 @@ Tabular formats (CSV, XLSX, DOCX tables, HTML) map to Markdown tables; PDFs extr
 
 **"Python was not found" or "not a supported version"**: install Python 3.10 or newer from [python.org](https://www.python.org/downloads/). If VS Code still picks the wrong one (it can see a different PATH than your terminal), set **MarkItDown: Python Path** (`markitdown.pythonPath`) to the full path of the interpreter you want.
 
-**"Failed to install markitdown"**: the error says why. If pip could not see any markitdown release, the machine can't reach pypi.org, usually because of a proxy or firewall.
+**"Failed to install markitdown"**: the error says why, and the **MarkItDown** output channel has the full installer output. If pip could not see any markitdown release, the machine can't reach pypi.org: set VS Code's `http.proxy`, or point `markitdown.pipIndexUrl` at your company's mirror.
+
+**"Python is installed without the venv module"** (Debian/Ubuntu): run `sudo apt install python3-venv`, or install uv.
 
 **"Conversion failed"**: open the Output panel (`View > Output`, select **MarkItDown**) for the full error. Check the file opens in its native app and isn't password-protected.
 
-**Empty Markdown output**: common for image files and image-only (scanned) PDFs. markitdown extracts text and metadata, not OCR, so a file with no embedded text produces an empty result. The extension now tells you when this happens.
+**Empty Markdown output**: common for image files and scanned PDFs. markitdown extracts text and metadata and does not do OCR, so a file with no embedded text produces an empty result. The extension tells you when this happens.
 
-**Still stuck?** If the environment seems broken, delete the extension's `markitdown-venv` storage folder and reload VS Code; it rebuilds automatically. Otherwise, [open an issue](https://github.com/BioInfo/vscode-markitdown/issues/new) with your VS Code version, Python version, the file type, and the Output-panel error.
+**Still stuck?** Run **MarkItDown: Rebuild Environment**. Otherwise, [open an issue](https://github.com/BioInfo/vscode-markitdown/issues/new) with your VS Code version, Python version, the file type, and the Output-panel error.
 
 ## 🛠️ Development
 

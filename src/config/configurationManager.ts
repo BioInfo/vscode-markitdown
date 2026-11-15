@@ -3,51 +3,44 @@ import * as vscode from 'vscode';
 export interface MarkitdownConfig {
     openFileOnSuccess: boolean;
     overwriteExisting: boolean;
+    /** Empty = next to the source file. Absolute, or relative to the file's workspace folder. */
+    outputDirectory: string;
+    keepDataUris: boolean;
+    audioTranscription: boolean;
+    conversionTimeoutSeconds: number;
 }
+
+const DEFAULTS: MarkitdownConfig = {
+    openFileOnSuccess: true,
+    overwriteExisting: false,
+    outputDirectory: '',
+    keepDataUris: false,
+    audioTranscription: false,
+    conversionTimeoutSeconds: 600,
+};
 
 export class ConfigurationManager {
     private static readonly SECTION = 'markitdown';
 
     public getConfiguration(): MarkitdownConfig {
         const config = vscode.workspace.getConfiguration(ConfigurationManager.SECTION);
-
-        // Get raw values for validation
-        const openFileOnSuccessRaw = config.get<boolean>('openFileOnSuccess', true);
-        const overwriteExistingRaw = config.get<boolean>('overwriteExisting', false);
-
-        // Validate types and use defaults if invalid
-        const openFileOnSuccess = this.validateBoolean(
-            openFileOnSuccessRaw,
-            'openFileOnSuccess',
-            true
-        );
-
-        const overwriteExisting = this.validateBoolean(
-            overwriteExistingRaw,
-            'overwriteExisting',
-            false
-        );
-
-        return {
-            openFileOnSuccess,
-            overwriteExisting
+        const pick = <K extends keyof MarkitdownConfig>(key: K): MarkitdownConfig[K] => {
+            const value = config.get<MarkitdownConfig[K]>(key, DEFAULTS[key]);
+            if (typeof value !== typeof DEFAULTS[key]) {
+                console.warn(`[MarkItDown] Invalid value for "${key}", using default ${DEFAULTS[key]}`);
+                return DEFAULTS[key];
+            }
+            return value;
         };
-    }
-
-    private validateBoolean(value: any, settingName: string, defaultValue: boolean): boolean {
-        if (typeof value !== 'boolean') {
-            console.warn(
-                `[MarkItDown] Invalid configuration value for "${settingName}": ` +
-                `expected boolean, got ${typeof value}. Using default: ${defaultValue}`
-            );
-            return defaultValue;
-        }
-        return value;
-    }
-
-    public async updateConfiguration(key: keyof MarkitdownConfig, value: boolean): Promise<void> {
-        const config = vscode.workspace.getConfiguration(ConfigurationManager.SECTION);
-        await config.update(key, value, vscode.ConfigurationTarget.Global);
+        const timeout = pick('conversionTimeoutSeconds');
+        return {
+            openFileOnSuccess: pick('openFileOnSuccess'),
+            overwriteExisting: pick('overwriteExisting'),
+            outputDirectory: pick('outputDirectory').trim(),
+            keepDataUris: pick('keepDataUris'),
+            audioTranscription: pick('audioTranscription'),
+            conversionTimeoutSeconds: timeout > 0 ? timeout : DEFAULTS.conversionTimeoutSeconds,
+        };
     }
 
     public onConfigurationChanged(callback: (config: MarkitdownConfig) => void): vscode.Disposable {

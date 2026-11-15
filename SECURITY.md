@@ -77,7 +77,7 @@ The MarkItDown VS Code Extension has been hardened for production use with thous
 ## Security Features
 
 ### Process Isolation
-- Python conversion runs in isolated virtual environment
+- Python conversion runs in a dedicated virtual environment, started in isolated mode (`-I`), so it ignores user site-packages and `PYTHON*` variables. Documents are parsed with your user's permissions; it is not a sandbox
 - Subprocess has 5-minute timeout protection
 - Output size limited to 10MB per stream
 - Graceful termination with SIGTERM → SIGKILL fallback
@@ -112,7 +112,16 @@ We will respond within 48 hours and provide a timeline for fixes.
 
 ## Security Changelog
 
-### Version 0.2.0 (Current)
+### Version 0.4.0 (Current)
+- Audio transcription is off by default; when enabled it sends audio to Google's speech recognition service
+- Python runs in isolated mode with a cleaned environment (`PYTHONPATH`, `PYTHONHOME`, `PIP_USER` removed)
+- Child processes start in the extension's storage folder, not the workspace (Windows looks up a bare `python` in the current folder first)
+- Timeouts and cancellation kill the whole process tree
+- A file that is not the type its extension claims is rejected instead of parsed as plain text
+- Output is written atomically and keeps the existing file's permissions; with overwrite off, an existing file is never replaced
+- Limited support for untrusted workspaces: in Restricted Mode, `audioTranscription`, `outputDirectory`, `overwriteExisting` and `keepDataUris` come from user settings only, so a cloned repository cannot turn them on. No support for virtual workspaces
+
+### Version 0.2.0
 - Fixed CRITICAL path injection vulnerability
 - Added process timeout protection
 - Implemented output size limits
@@ -130,20 +139,20 @@ We will respond within 48 hours and provide a timeline for fixes.
 
 This extension:
 - Does not collect or transmit user data
-- Does not communicate with external servers (except pip during setup)
-- Processes all conversions locally
+- Contacts the package index (PyPI, or your configured mirror) only to install or upgrade markitdown
+- Processes conversions locally, except audio transcription, which is off by default and sends audio to Google when you turn it on
 - Stores data only in VS Code's global storage directory
 
 ## Dependencies
 
 ### Runtime Dependencies
-- Python 3.x (system-installed)
-- markitdown[all] (installed in isolated venv)
+- Python 3.10 or newer, or uv (which can provide Python)
+- markitdown 0.1.x with the docx, pptx, xlsx, xls, pdf, outlook and audio-transcription extras, installed in the extension's own virtual environment
 
 ### Security Considerations
 - Python dependencies installed via pip from PyPI
-- Virtual environment isolated per VS Code workspace
-- No network communication after initial setup
+- One virtual environment in VS Code's global storage, shared by all windows behind a lock
+- Packages upgrade within markitdown 0.1.x when a new extension version changes the install spec; versions are not hash-pinned
 
 ## License
 

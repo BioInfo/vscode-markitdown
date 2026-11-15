@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { ErrorHandler, ErrorCategory } from '../../utils/errorHandler';
+import { ErrorHandler, ErrorCategory, EnvironmentError } from '../../utils/errorHandler';
 
 suite('ErrorHandler Test Suite', () => {
     let errorHandler: ErrorHandler;
@@ -25,6 +25,14 @@ suite('ErrorHandler Test Suite', () => {
     test('categorizes Python environment errors', () => {
         const result = errorHandler.categorize(new Error('python command not found'));
         assert.strictEqual(result.category, ErrorCategory.EnvironmentMissing);
+    });
+
+    test('shows an EnvironmentError message verbatim, even when it mentions python or access', () => {
+        const msg = 'Found Python, but markitdown needs 3.10 or newer: python3 (3.9). Check access to pypi.org.';
+        const result = errorHandler.categorize(new EnvironmentError(msg, 'Install Python 3.12'));
+        assert.strictEqual(result.category, ErrorCategory.EnvironmentMissing);
+        assert.strictEqual(result.message, msg);
+        assert.strictEqual(result.suggestion, 'Install Python 3.12');
     });
 
     test('categorizes permission/access errors as IO', () => {

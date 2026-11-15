@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
-import { ErrorHandler } from '../utils/errorHandler';
-import { parsePythonVersion, isSupportedPython, SUPPORTED_RANGE } from './pythonVersion';
+import { ErrorHandler, EnvironmentError } from '../utils/errorHandler';
+import { parsePythonVersion, isSupportedPython, SUPPORTED_RANGE, NO_PIP_CANDIDATES } from './pythonVersion';
 
 /**
  * markitdown install spec.
@@ -20,6 +20,13 @@ import { parsePythonVersion, isSupportedPython, SUPPORTED_RANGE } from './python
 const MARKITDOWN_SPEC =
     'markitdown[docx,pptx,xlsx,xls,pdf,outlook,audio-transcription]>=0.1.6,<0.2.0';
 
+/** An interpreter invocation: the program plus any leading args (`py -3.12`). */
+interface PythonCommand {
+    cmd: string;
+    args: string[];
+}
+
+const describe = (c: PythonCommand) => [c.cmd, ...c.args].join(' ');
 
 export interface ConversionResult {
     /** Number of (trimmed) characters written to the output file. */
@@ -31,7 +38,7 @@ export class PythonEnvironmentManager {
     private errorHandler: ErrorHandler;
     private venvPath: string;
     private runnerPath: string;
-    private pythonExecutable: string | null = null;
+    private pythonCommand: PythonCommand | null = null;
 
     constructor(context: vscode.ExtensionContext, errorHandler: ErrorHandler) {
         this.context = context;
@@ -47,13 +54,7 @@ export class PythonEnvironmentManager {
             await this.ensureDirectoryExists(this.context.globalStorageUri.fsPath);
 
             progress?.report({ message: 'Locating Python…' });
-            this.pythonExecutable = await this.findPythonExecutable();
-
-            if (!this.pythonExecutable) {
-                throw new Error(
-                    'Python not found in PATH. Please install Python 3.10+ and ensure it is available in your PATH.'
-                );
-            }
+            this.pythonCommand = await this.findPython();
 
             progress?.report({ message: 'Preparing virtual environment…', increment: 20 });
             await this.ensureVirtualEnvironment();
@@ -68,43 +69,69 @@ export class PythonEnvironmentManager {
         }
     }
 
-    private async getPythonVersion(executable: string): Promise<[number, number] | null> {
-        try {
-            const result = await this.executeCommand(executable, ['--version'], 10000);
-            if (result.exitCode !== 0) { return null; }
-            return parsePythonVersion(result.stdout + ' ' + result.stderr);
-        } catch {
-            return null;
-        }
+    /** Version of an interpreter, or null if it ran but printed none. Throws if it cannot run. */
+    private async getPythonVersion(c: PythonCommand): Promise<[number, number] | null> {
+        const result = await this.executeCommand(c.cmd, [...c.args, '--version'], 15000);
+        if (result.exitCode !== 0) { return null; }
+        return parsePythonVersion(result.stdout + ' ' + result.stderr);
     }
 
-    /**
-     * Pick the first interpreter on PATH whose version markitdown supports.
-     * The process that runs VS Code can see a different `python` than your
-     * terminal does, so an interpreter that merely runs is not enough.
-     */
-    private async findPythonExecutable(): Promise<string | null> {
-        const candidates = process.platform === 'win32'
-            ? ['python', 'python3', 'py']
-            : ['python3', 'python'];
+    private pythonCandidates(): PythonCommand[] {
+        const configured = vscode.workspace
+            .getConfiguration('markitdown')
+            .get<string>('pythonPath', '')
+            .trim();
+        if (configured) {
+            return [{ cmd: configured, args: [] }];
+        }
+        // The process running VS Code can see a different PATH than your
+        // terminal (a Dock launch on macOS, for example), so also try the
+        // versioned names that installers add.
+        const minors: number[] = [];
+        for (let m = 16; m >= 10; m--) { minors.push(m); }
+        if (process.platform === 'win32') {
+            return [
+                { cmd: 'python', args: [] },
+                { cmd: 'python3', args: [] },
+                { cmd: 'py', args: ['-3'] },
+                ...minors.map(m => ({ cmd: 'py', args: [`-3.${m}`] })),
+            ];
+        }
+        return [
+            { cmd: 'python3', args: [] },
+            { cmd: 'python', args: [] },
+            ...minors.map(m => ({ cmd: `python3.${m}`, args: [] })),
+        ];
+    }
 
+    /** First interpreter whose version markitdown supports. */
+    private async findPython(): Promise<PythonCommand> {
+        const candidates = this.pythonCandidates();
         const rejected: string[] = [];
         for (const candidate of candidates) {
-            const version = await this.getPythonVersion(candidate);
-            if (version && isSupportedPython(version)) {
+            let version: [number, number] | null;
+            try {
+                version = await this.getPythonVersion(candidate);
+            } catch {
+                continue; // not installed, or did not answer in time
+            }
+            if (isSupportedPython(version)) {
                 return candidate;
             }
             if (version) {
-                rejected.push(`${candidate} (${version.join('.')})`);
+                rejected.push(`${describe(candidate)} (${version.join('.')})`);
             }
         }
+        const fix = `Install Python ${SUPPORTED_RANGE}, or point the "markitdown.pythonPath" setting at one.`;
         if (rejected.length > 0) {
-            throw new Error(
-                `Found Python, but not a supported version: ${rejected.join(', ')}. ` +
-                `markitdown needs Python ${SUPPORTED_RANGE}.`
-            );
+            throw new EnvironmentError(
+                `Found Python, but markitdown needs ${SUPPORTED_RANGE}: ${rejected.join(', ')}.`, fix);
         }
-        return null;
+        throw new EnvironmentError(
+            candidates.length === 1
+                ? `The configured markitdown.pythonPath (${describe(candidates[0])}) did not run.`
+                : 'Python was not found on PATH.',
+            fix);
     }
 
     private async ensureVirtualEnvironment(): Promise<void> {
@@ -118,10 +145,17 @@ export class PythonEnvironmentManager {
             // so it may have been built by an older, unsupported Python. Pip in
             // such a venv sees no installable markitdown at all
             // ("from versions: )"). Rebuild unless it runs a supported version.
-            const venvVersion = await this.getPythonVersion(venvPythonPath);
-            if (!isSupportedPython(venvVersion)) {
-                console.warn(`Rebuilding virtual environment (venv Python: ${venvVersion?.join('.') ?? 'not runnable'})`);
-                needsCreation = true;
+            // Rebuild only on a definite answer: the interpreter failed, or it
+            // reported an unsupported version. A timeout (antivirus scanning
+            // python.exe on first launch, say) keeps the venv.
+            try {
+                const venvVersion = await this.getPythonVersion({ cmd: venvPythonPath, args: [] });
+                if (!isSupportedPython(venvVersion)) {
+                    console.warn(`Rebuilding virtual environment (venv Python: ${venvVersion?.join('.') ?? 'failed to run'})`);
+                    needsCreation = true;
+                }
+            } catch (error) {
+                console.warn(`Could not query venv Python, keeping it: ${error}`);
             }
 
             if (needsCreation) {
@@ -131,12 +165,13 @@ export class PythonEnvironmentManager {
 
         if (needsCreation) {
             console.log('Creating virtual environment…');
-            const result = await this.executeCommand(this.pythonExecutable!, [
-                '-m', 'venv', this.venvPath
+            const py = this.pythonCommand!;
+            const result = await this.executeCommand(py.cmd, [
+                ...py.args, '-m', 'venv', this.venvPath
             ], 120000);
 
             if (result.exitCode !== 0) {
-                throw new Error(`Failed to create virtual environment: ${result.stderr}`);
+                throw new EnvironmentError(`Failed to create virtual environment with ${describe(py)}: ${result.stderr.trim()}`);
             }
 
             const verifyResult = await this.executeCommand(venvPythonPath, ['--version'], 10000);
@@ -165,34 +200,26 @@ export class PythonEnvironmentManager {
         console.log(`markitdown check failed (${check.stderr.trim()}); installing…`);
         progress?.report({ message: 'Installing markitdown (first run, may take a minute)…' });
 
-        let installResult = await this.pipInstall(venvPython);
-
-        // An empty candidate list means pip saw no markitdown release it could
-        // use. Retry once in a freshly built venv before giving up.
-        if (installResult.exitCode !== 0 && /from versions:\s*(none)?\s*\)/.test(installResult.stderr)) {
-            console.warn('pip found no installable markitdown; rebuilding venv and retrying once');
-            await this.removeVirtualEnvironment();
-            await this.ensureVirtualEnvironment();
-            installResult = await this.pipInstall(venvPython);
-        }
+        const installResult = await this.pipInstall(venvPython);
 
         if (installResult.exitCode !== 0) {
-            const venvVersion = await this.getPythonVersion(venvPython);
-            const noCandidates = /from versions:\s*(none)?\s*\)/.test(installResult.stderr);
-            const hint = noCandidates
-                ? `pip could not see any markitdown release. Check that this machine can reach pypi.org ` +
-                  `(proxy or firewall settings), and that Python is ${SUPPORTED_RANGE}.`
-                : `A dependency may have no wheel for your platform, or Python is outside ${SUPPORTED_RANGE}.`;
-            throw new Error(
-                `Failed to install markitdown (venv Python ${venvVersion?.join('.') ?? 'unknown'}). ${hint}\n` +
-                `pip error: ${installResult.stderr}`
+            let venvVersion = 'unknown';
+            try {
+                venvVersion = (await this.getPythonVersion({ cmd: venvPython, args: [] }))?.join('.') ?? venvVersion;
+            } catch { /* keep 'unknown' */ }
+            const hint = NO_PIP_CANDIDATES.test(installResult.stderr)
+                ? 'pip could not see any markitdown release. Check that this machine can reach pypi.org (proxy or firewall settings).'
+                : 'A dependency may have no prebuilt wheel for your platform.';
+            throw new EnvironmentError(
+                `Failed to install markitdown (venv Python ${venvVersion}). ${hint}`,
+                `Full pip output is in the MarkItDown output channel. pip said: ${installResult.stderr.trim().split('\n').slice(-3).join(' ')}`
             );
         }
 
         // Confirm the freshly installed environment actually passes the check.
         const recheck = await this.executeCommand(venvPython, [this.runnerPath, 'check'], 30000);
         if (recheck.exitCode !== 0) {
-            throw new Error(`markitdown installed but verification failed: ${recheck.stderr}`);
+            throw new EnvironmentError(`markitdown installed but verification failed: ${recheck.stderr.trim()}`);
         }
         console.log(`markitdown ${recheck.stdout.trim()} installed successfully`);
     }

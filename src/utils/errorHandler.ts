@@ -16,6 +16,18 @@ export interface MarkitdownError {
     suggestion?: string;
 }
 
+/**
+ * An environment problem whose message is already written for the user
+ * (which interpreter was found, what to fix). categorize() shows it verbatim
+ * instead of replacing it with a generic keyword-matched message.
+ */
+export class EnvironmentError extends Error {
+    constructor(message: string, public readonly suggestion?: string) {
+        super(message);
+        this.name = 'EnvironmentError';
+    }
+}
+
 export class ErrorHandler {
     public readonly outputChannel: vscode.OutputChannel;
     private lineCount: number = 0;
@@ -41,6 +53,15 @@ export class ErrorHandler {
             return {
                 category: ErrorCategory.Unknown,
                 message: error
+            };
+        }
+
+        if (error instanceof EnvironmentError) {
+            return {
+                category: ErrorCategory.EnvironmentMissing,
+                message: error.message,
+                suggestion: error.suggestion,
+                details: error.stack
             };
         }
 

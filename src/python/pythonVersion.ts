@@ -1,8 +1,11 @@
 // Pure helpers, no vscode import, so they can be tested in plain Node.
 
-/** Python range markitdown 0.1.x supports (requires-python >=3.10,<3.15). */
+/**
+ * Oldest Python markitdown 0.1.x supports. There is deliberately no upper
+ * bound: newer markitdown releases cap requires-python (0.1.8+ say <3.15) but
+ * 0.1.6/0.1.7 do not, so pip picks a compatible release on new Pythons.
+ */
 export const MIN_PYTHON: [number, number] = [3, 10];
-export const MAX_PYTHON_EXCLUSIVE: [number, number] = [3, 15];
 
 /** Parse `Python 3.14.6` (stdout, or stderr on old interpreters) into [major, minor]. */
 export function parsePythonVersion(output: string): [number, number] | null {
@@ -12,9 +15,10 @@ export function parsePythonVersion(output: string): [number, number] | null {
 
 export function isSupportedPython(v: [number, number] | null): boolean {
     if (!v) { return false; }
-    const n = v[0] * 100 + v[1];
-    return n >= MIN_PYTHON[0] * 100 + MIN_PYTHON[1]
-        && n < MAX_PYTHON_EXCLUSIVE[0] * 100 + MAX_PYTHON_EXCLUSIVE[1];
+    return v[0] > MIN_PYTHON[0] || (v[0] === MIN_PYTHON[0] && v[1] >= MIN_PYTHON[1]);
 }
 
-export const SUPPORTED_RANGE = `${MIN_PYTHON.join('.')} to ${MAX_PYTHON_EXCLUSIVE[0]}.${MAX_PYTHON_EXCLUSIVE[1] - 1}`;
+export const SUPPORTED_RANGE = `${MIN_PYTHON.join('.')} or newer`;
+
+/** pip's output when it can see no release of the package at all. */
+export const NO_PIP_CANDIDATES = /from versions:\s*(none)?\s*\)/;

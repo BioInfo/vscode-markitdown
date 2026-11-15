@@ -5,6 +5,20 @@ All notable changes to the "MarkItDown" extension will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-11-14
+
+### Fixed
+- Setup errors now show their real message. The error handler replaced any message mentioning Python with a generic "Python environment not available", which hid the interpreter list and the network hint added in 0.3.2.
+- Python 3.15 and newer work again. 0.3.2 rejected them, but markitdown 0.1.6 and 0.1.7 support any Python from 3.10 up, so pip finds a compatible release.
+- Finds Python under versioned names (`python3.12`, `py -3.12` on Windows) when the bare `python3` / `python` on VS Code's PATH is too old.
+- A slow first launch of the venv's Python (antivirus scanning it, say) no longer deletes and reinstalls the whole environment.
+- Removed the 0.3.2 "rebuild and retry" step after a failed install. It rebuilt the same environment and doubled the wait before showing the same error.
+
+### Added
+- `markitdown.pythonPath` setting to choose the interpreter.
+- Right-click conversion for `.xls`, `.htm`, `.epub`, `.ipynb`, `.msg` and `.m4a`.
+- Unit tests for Python version gating, and CI on Linux, Windows and macOS with Python 3.10 and 3.14.
+
 ## [0.3.2] - 2026-11-14
 
 ### Fixed

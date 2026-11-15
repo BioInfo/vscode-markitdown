@@ -115,7 +115,9 @@ Tabular formats (CSV, XLSX, DOCX tables, HTML) map to Markdown tables; PDFs extr
 
 ## 🐛 Troubleshooting
 
-**"Python not found"**: install Python 3.10+ and make sure `python --version` works in a terminal. Get it from [python.org](https://www.python.org/downloads/).
+**"Python was not found" or "not a supported version"**: install Python 3.10 or newer from [python.org](https://www.python.org/downloads/). If VS Code still picks the wrong one (it can see a different PATH than your terminal), set **MarkItDown: Python Path** (`markitdown.pythonPath`) to the full path of the interpreter you want.
+
+**"Failed to install markitdown"**: the error says why. If pip could not see any markitdown release, the machine can't reach pypi.org, usually because of a proxy or firewall.
 
 **"Conversion failed"**: open the Output panel (`View > Output`, select **MarkItDown**) for the full error. Check the file opens in its native app and isn't password-protected.
 

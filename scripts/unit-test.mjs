@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { parsePythonVersion, isSupportedPython, NO_PIP_CANDIDATES } = require('../out/python/pythonVersion.js');
+const { parsePythonVersion, isSupportedPython, NO_PIP_CANDIDATES, hasKnownWheels, rankByWheels, UV_PYTHON } = require('../out/python/pythonVersion.js');
 
 test('parsePythonVersion reads major.minor from --version output', () => {
     assert.deepEqual(parsePythonVersion('Python 3.14.6'), [3, 14]);
@@ -22,6 +22,15 @@ test('isSupportedPython accepts 3.10 and newer, with no upper bound', () => {
     for (const v of [[3, 9], [3, 7], [2, 7], null]) {
         assert.equal(isSupportedPython(v), false, `expected ${v} unsupported`);
     }
+});
+
+test('rankByWheels tries Pythons with known wheels first and drops unsupported ones', () => {
+    const probes = [['python3', [3, 15]], ['python', [2, 7]], ['python3.14', [3, 14]], ['python3.12', [3, 12]], ['x', null]];
+    assert.deepEqual(rankByWheels(probes, p => p[1]).map(p => p[0]), ['python3.14', 'python3.12', 'python3']);
+    assert.equal(hasKnownWheels([3, 14]), true);
+    assert.equal(hasKnownWheels([3, 15]), false);
+    assert.equal(hasKnownWheels([3, 9]), false);
+    assert.equal(hasKnownWheels(UV_PYTHON.split('.').map(Number)), true, 'the uv pin must have known wheels');
 });
 
 test('NO_PIP_CANDIDATES matches only an empty candidate list', () => {

@@ -19,6 +19,9 @@ import { writeFileSync, existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -51,12 +54,17 @@ function run(cmd, args, opts = {}) {
   return spawnSync(cmd, args, { encoding: 'utf-8', ...opts });
 }
 
+// Same preference as the extension: a Python every dependency has wheels
+// for, before a newer one (onnxruntime had no cp315 wheel at 1.32.0).
 function findPython() {
-  for (const c of ['python3', 'python']) {
-    const r = run(c, ['--version']);
-    if (r.status === 0) return c;
-  }
-  return null;
+  const { parsePythonVersion, rankByWheels } = require('../out/python/pythonVersion.js');
+  const names = ['python3', 'python'];
+  for (let m = 16; m >= 10; m--) names.push(`python3.${m}`);
+  const probes = names.map(cmd => {
+    const r = run(cmd, ['--version']);
+    return { cmd, version: r.status === 0 ? parsePythonVersion(r.stdout + r.stderr) : null };
+  });
+  return rankByWheels(probes, p => p.version)[0]?.cmd ?? null;
 }
 
 function venvPython(venv) {
@@ -77,7 +85,7 @@ function setupVenv() {
   const venv = path.join(ROOT, '.test-venv');
   const py = venvPython(venv);
   const sysPython = findPython();
-  if (!sysPython) fail('No python3/python found on PATH.');
+  if (!sysPython) fail('No Python 3.10+ found on PATH (run npm run compile first).');
 
   if (!existsSync(py)) {
     console.log('• creating venv (.test-venv)…');

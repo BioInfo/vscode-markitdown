@@ -10,8 +10,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ['3.10', '3.14']
+        # 3.15 first on PATH is the common new-user case: setup must pass over
+        # it to an older Python (pip) or the uv pin. `uv` adds uv to the runner.
+        python: ['3.10', '3.14', '3.15']
+        uv: [false]
+        include:
+          - { os: ubuntu-latest, python: '3.15', uv: true }
+          - { os: windows-latest, python: '3.15', uv: true }
+          - { os: macos-latest, python: '3.15', uv: true }
     runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} / py${{ matrix.python }}${{ matrix.uv && ' / uv' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,6 +28,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+      - uses: astral-sh/setup-uv@v6
+        if: matrix.uv
       - run: npm ci
       # Compile, lint, plain-Node unit tests, runner functional tests.
       - run: npm test
@@ -31,3 +41,17 @@ jobs:
       - name: Extension tests
         if: runner.os != 'Linux'
         run: npm run test:vscode
+
+  # Goes green when every dependency ships wheels for the newest Python. Then
+  # raise NEWEST_WITH_WHEELS in src/python/pythonVersion.ts.
+  newest-python-canary:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.15'
+      - run: |
+          spec=$(node -e "console.log(/MARKITDOWN_SPEC\s*=\s*'([^']+)'/.exec(require('fs').readFileSync('src/python/environmentManager.ts','utf8'))[1])")
+          python -m venv /tmp/canary && /tmp/canary/bin/pip install "$spec"

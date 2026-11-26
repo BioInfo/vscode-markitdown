@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { ErrorHandler, EnvironmentError, ConversionError } from '../utils/errorHandler';
-import { parsePythonVersion, isSupportedPython, SUPPORTED_RANGE, NO_PIP_CANDIDATES } from './pythonVersion';
+import { parsePythonVersion, isSupportedPython, SUPPORTED_RANGE, NO_PIP_CANDIDATES, rankByWheels, UV_PYTHON } from './pythonVersion';
 import { runProcess, ProcessResult, ProcessTimeoutError, ProcessCancelledError } from './process';
 
 /**
@@ -217,7 +217,8 @@ export class PythonEnvironmentManager {
 
         progress?.report({ message: 'Locating Python…' });
         const probes = await this.probePythons();
-        const supported = probes.filter(p => isSupportedPython(p.version)).map(p => p.candidate);
+        const ranked = rankByWheels(probes, p => p.version);
+        const supported = ranked.map(p => p.candidate);
         const configured = this.setting<string>('pythonPath', '').trim();
         if (configured && supported.length === 0) {
             // Never swap a configured interpreter for another one silently.
@@ -226,7 +227,7 @@ export class PythonEnvironmentManager {
 
         if (uv) {
             try {
-                await this.buildWithUv(uv, supported, progress, signal);
+                await this.buildWithUv(uv, ranked, progress, signal);
                 await this.finish();
                 return;
             } catch (error) {
@@ -243,10 +244,11 @@ export class PythonEnvironmentManager {
     }
 
     /** uv creates the venv (fetching a managed Python if none is installed) and installs fast. */
-    private async buildWithUv(uv: string, supported: PythonCommand[], progress: Progress | undefined, signal: AbortSignal | undefined): Promise<void> {
+    private async buildWithUv(uv: string, ranked: Probe[], progress: Progress | undefined, signal: AbortSignal | undefined): Promise<void> {
         progress?.report({ message: 'Creating environment with uv…' });
-        // No usable Python installed: uv downloads a managed one.
-        const request = supported.length > 0 ? this.uvPythonRequest(supported[0]) : '3.12';
+        // A configured pythonPath is used as given; otherwise the pinned version.
+        const configured = this.setting<string>('pythonPath', '').trim();
+        const request = configured && ranked.length > 0 ? this.uvPythonRequest(ranked[0].candidate) : UV_PYTHON;
         this.log(`Creating venv with uv (python ${request})`);
         const created = await this.run(uv, ['venv', '--seed', '--python', request, this.venvPath], INSTALL_TIMEOUT_MS, signal);
         if (created.exitCode !== 0) {

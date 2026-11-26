@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Setup failed when Python 3.15 was the only Python installed, and was slow when it came first on PATH: onnxruntime, which markitdown needs, has no 3.15 wheels yet. Pythons with known wheels (3.10 to 3.14) are now tried first, and newer ones last.
 - With uv, the environment is always built on Python 3.13. uv uses an installed 3.13 or downloads one, so the Python you happen to have no longer matters. A `markitdown.pythonPath` setting is still used as given.
-- The development test script (`npm test`) picks its Python the same way, so it works on a machine whose `python3` is 3.15 ([#7](https://github.com/BioInfo/vscode-markitdown/issues/7)).
+- If the only Python found is newer than onnxruntime supports and uv isn't installed, setup now says so and names the fix: install Python 3.14 or older, or uv.
+- The development test script (`npm test`) uses uv when it's on PATH and otherwise picks its Python the same way, so it works on a machine whose `python3` is 3.15 ([#7](https://github.com/BioInfo/vscode-markitdown/issues/7)).
 
 ### Changed
 - CI also runs with Python 3.15 first on PATH, with and without uv, and a canary job reports when 3.15 wheels become available.

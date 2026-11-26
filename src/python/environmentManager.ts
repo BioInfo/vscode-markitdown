@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { ErrorHandler, EnvironmentError, ConversionError } from '../utils/errorHandler';
-import { parsePythonVersion, isSupportedPython, SUPPORTED_RANGE, NO_PIP_CANDIDATES, rankByWheels, UV_PYTHON } from './pythonVersion';
+import { parsePythonVersion, isSupportedPython, SUPPORTED_RANGE, NO_PIP_CANDIDATES, rankByWheels, hasKnownWheels, NEWEST_WITH_WHEELS, UV_PYTHON } from './pythonVersion';
 import { runProcess, ProcessResult, ProcessTimeoutError, ProcessCancelledError } from './process';
 
 /**
@@ -239,7 +239,16 @@ export class PythonEnvironmentManager {
         if (supported.length === 0) {
             throw this.noPythonError(probes);
         }
-        await this.buildWithPip(supported, progress, signal);
+        try {
+            await this.buildWithPip(supported, progress, signal);
+        } catch (error) {
+            if (error instanceof EnvironmentError && !ranked.some(p => hasKnownWheels(p.version))) {
+                throw new EnvironmentError(
+                    `Failed to install markitdown: Python ${ranked[0].version!.join('.')} is newer than its dependencies support (onnxruntime has no wheels for it yet).`,
+                    `Install Python ${NEWEST_WITH_WHEELS.join('.')} or older, or install uv (https://docs.astral.sh/uv/) so the extension can fetch one.`);
+            }
+            throw error;
+        }
         await this.finish();
     }
 

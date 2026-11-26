@@ -19,6 +19,9 @@ jobs:
           - { os: windows-latest, python: '3.15', uv: true }
           - { os: macos-latest, python: '3.15', uv: true }
     runs-on: ${{ matrix.os }}
+    # Windows runners have no Python but 3.15, and without uv nothing can be
+    # installed there until onnxruntime ships 3.15 wheels. Expected to fail.
+    continue-on-error: ${{ matrix.os == 'windows-latest' && matrix.python == '3.15' && !matrix.uv }}
     name: ${{ matrix.os }} / py${{ matrix.python }}${{ matrix.uv && ' / uv' || '' }}
     steps:
       - uses: actions/checkout@v4

@@ -84,12 +84,20 @@ function setupVenv() {
 
   const venv = path.join(ROOT, '.test-venv');
   const py = venvPython(venv);
-  const sysPython = findPython();
-  if (!sysPython) fail('No Python 3.10+ found on PATH (run npm run compile first).');
+  // Like the extension: uv on PATH builds on the pinned Python, else pip.
+  const { UV_PYTHON } = require('../out/python/pythonVersion.js');
+  const uv = run('uv', ['--version']).status === 0 ? 'uv' : null;
 
   if (!existsSync(py)) {
-    console.log('• creating venv (.test-venv)…');
-    const r = run(sysPython, ['-m', 'venv', venv]);
+    console.log(`• creating venv (.test-venv)${uv ? ` with uv, Python ${UV_PYTHON}` : ''}…`);
+    let r;
+    if (uv) {
+      r = run(uv, ['venv', '--seed', '--python', UV_PYTHON, venv]);
+    } else {
+      const sysPython = findPython();
+      if (!sysPython) fail('No Python 3.10+ found on PATH (run npm run compile first).');
+      r = run(sysPython, ['-m', 'venv', venv]);
+    }
     if (r.status !== 0) fail(`venv creation failed:\n${r.stderr}`);
   }
 
@@ -99,10 +107,10 @@ function setupVenv() {
     console.log(`• markitdown ${check.stdout.trim()} present, skipping install`);
   } else {
     console.log(`• installing ${MARKITDOWN_SPEC} (first run, may take a minute)…`);
-    const inst = run(py, ['-m', 'pip', 'install', '--upgrade', MARKITDOWN_SPEC], {
-      stdio: ['ignore', 'inherit', 'inherit'],
-    });
-    if (inst.status !== 0) fail('pip install failed (see output above).');
+    const inst = uv
+      ? run(uv, ['pip', 'install', '--upgrade', '--python', py, MARKITDOWN_SPEC], { stdio: ['ignore', 'inherit', 'inherit'] })
+      : run(py, ['-m', 'pip', 'install', '--upgrade', MARKITDOWN_SPEC], { stdio: ['ignore', 'inherit', 'inherit'] });
+    if (inst.status !== 0) fail('install failed (see output above).');
     const recheck = run(py, [RUNNER, 'check']);
     if (recheck.status !== 0) fail(`post-install check failed:\n${recheck.stderr}`);
     console.log(`• markitdown ${recheck.stdout.trim()} installed`);
